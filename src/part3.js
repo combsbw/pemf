@@ -10,9 +10,17 @@ const S = {
   snap: null, supplyKey: 'bat24', showAll: false
 };
 S.P.supply = Object.assign({}, C.SUPPLIES.bat24);
+/* objective descriptors: every place that depends on what is being optimized reads from here */
+const OBJ = {
+  maxB: { min: false, name: 'Flux at target', unit: 'mT', fromSol: s => s.Bpk * 1e3, fromR: r => r.A.Bpk * 1e3, f: '−B / 1 mT', fTex: 'f=-B_T/1\\,\\mathrm{mT}', pull: '∇B', slope: 1, dec: 2 },
+  minP: { min: true, name: 'Coil heat', unit: 'W', fromSol: s => s.Pcoil, fromR: r => r.A.Pcoil, f: 'P_coil / 10 W', pull: '−∇P', slope: -10, dec: 1 },
+  minI: { min: true, name: 'Peak current', unit: 'A', fromSol: s => s.x[6], fromR: r => r.A.I, f: 'I / 5 A', pull: '−∇I', slope: -5, dec: 2 }
+};
+const obj = () => OBJ[S.P.objective] || OBJ.maxB;
+const needsB = () => S.P.objective !== 'maxB';
 
 /* ---------- persistence (per-viewer convenience only) ---------- */
-const KEY = 'pemf-butterfly-v1';
+const KEY = 'pemf-butterfly-v2';
 function saveState() { try { localStorage.setItem(KEY, JSON.stringify({ P: S.P, lock: S.lock, supplyKey: S.supplyKey }, (k, v) => v === Infinity ? '∞' : v)); } catch (e) { } }
 function loadState() {
   try {
@@ -75,7 +83,7 @@ class Runner {
 const mainRunner = new Runner(), batchRunner = new Runner();
 function clonePSafe(P) { return JSON.parse(JSON.stringify(P, (k, v) => v === Infinity ? '∞' : v), (k, v) => v === '∞' ? Infinity : v); }
 function coldStarts(n) {
-  const base = [[0.55, 0.55, 0.45, 0.2, 0.4, 0.55, 0.5], [0.35, 0.35, 0.35, 0.5, 0.25, 0.4, 0.6], [0.8, 0.8, 0.5, 0.15, 0.45, 0.7, 0.4]];
+  const base = [[0.55, 0.55, 0.45, 0.2, 0.4, 0.55, 0.5], [0.35, 0.35, 0.35, 0.5, 0.25, 0.4, 0.6], [0.8, 0.8, 0.5, 0.15, 0.45, 0.7, 0.4], [0.6, 0.6, 0.7, 0.5, 0.4, 0.5, 0.35]];
   return base.slice(0, n || 2);
 }
 let solveToken = 0;
@@ -105,8 +113,9 @@ const P_ = (path, scale) => ({
 });
 const SCHEMA = [
   { sec: 'Target and objective', open: true, items: [
-    { id: 'objective', type: 'seg', label: 'Objective', opts: [['maxB', 'Maximize flux'], ['minP', 'Minimize heat']], ...P_('objective', 1), reflow: true, hint: 'Flux mode pushes B at the target as high as the limits allow. Heat mode fixes the flux you need and minimizes coil dissipation.' },
-    { id: 'BaReq', label: 'Required acute flux', unit: 'mT', min: 0.5, max: 20, step: 0.1, ...P_('BaReq', 1e3), show: P => P.objective === 'minP' },
+    { id: 'objective', type: 'seg', label: 'Objective', opts: [['maxB', 'Max flux'], ['minI', 'Min amps'], ['minP', 'Min heat']], ...P_('objective', 1), reflow: true, hint: 'Max flux pushes B at the target as high as your limits allow. Min amps and Min heat fix the flux you need and then minimize current or coil dissipation.' },
+    { id: 'Isw', label: 'Peak current budget (acute)', unit: 'A', min: 1, max: 60, step: 0.5, ...P_('drive.Isw', 1), hint: 'The most amps your build can handle. The solver trades turns, wire gauge and voltage to stay under it. Recovery current is set by its flux and the same limit applies.' },
+    { id: 'BaReq', label: 'Required acute flux', unit: 'mT', min: 0.5, max: 20, step: 0.1, ...P_('BaReq', 1e3), show: P => P.objective !== 'maxB' },
     { id: 'depth', label: 'Target depth below skin', unit: 'cm', min: 2, max: 12, step: 0.5, ...P_('depth', 100), hint: 'Skin to the disc and nerve root. Lumbar discs are commonly 5 to 8 cm deep.' },
     { id: 'standoff', label: 'Cover and cushion thickness', unit: 'mm', min: 3, max: 30, step: 1, ...P_('standoff', 1e3) },
     { id: 'Brec', label: 'Recovery-mode flux', unit: 'mT', min: 0.05, max: 5, step: 0.05, ...P_('recov.Bpk', 1e3), hint: 'Set directly. Recovery current follows from I = B / k_B.' }
@@ -130,8 +139,7 @@ const SCHEMA = [
     { id: 'Pmax', label: 'Supply rating', unit: 'W', min: 20, max: 800, step: 10, ...P_('supply.Pmax', 1), show: P => P.supply.kind === 'wall' },
     { id: 'Imax', label: 'Pack continuous current', unit: 'A', min: 5, max: 80, step: 1, ...P_('supply.Imax', 1), show: P => P.supply.kind === 'battery', after: 'pmax' },
     { id: 'capWh', label: 'Pack energy', unit: 'Wh', min: 20, max: 600, step: 10, ...P_('supply.capWh', 1), show: P => P.supply.kind === 'battery' },
-    { id: 'Rds', label: 'MOSFET on-resistance', unit: 'mΩ', min: 1, max: 60, step: 0.5, ...P_('drive.Rds', 1e3), hint: 'Per device. An H-bridge puts two in the current path.' },
-    { id: 'Isw', label: 'Switch current limit', unit: 'A', min: 10, max: 120, step: 5, ...P_('drive.Isw', 1) }
+    { id: 'Rds', label: 'MOSFET on-resistance', unit: 'mΩ', min: 1, max: 60, step: 0.5, ...P_('drive.Rds', 1e3), hint: 'Per device. An H-bridge puts two in the current path.' }
   ] },
   { sec: 'Heat and comfort', items: [
     { id: 'Tmax', label: 'Coil temperature limit', unit: '°C', min: 35, max: 90, step: 1, ...P_('thermal.Tmax', 1) },
@@ -236,7 +244,7 @@ function renderStatus() {
 }
 function limitedBy() {
   if (!S.sol) return '';
-  const lam = S.sol.lam, act = CN.map((c, i) => ({ c, i, l: lam[i] })).filter(o => o.l > 1e-3 && !(S.P.objective !== 'minP' && o.c.id === 'Breq')).sort((a, b) => b.l - a.l).slice(0, 3);
+  const lam = S.sol.lam, act = CN.map((c, i) => ({ c, i, l: lam[i] })).filter(o => o.l > 1e-3 && !(!needsB() && o.c.id === 'Breq')).sort((a, b) => b.l - a.l).slice(0, 3);
   const bounds = S.sol.atBound.map((b, i) => (b === 'lo' || b === 'hi') ? VAR[i].label.toLowerCase() + (b === 'lo' ? ' at minimum' : ' at maximum') : null).filter(Boolean);
   if (!act.length && !bounds.length) return 'No limit is binding: the design is set by the variable ranges.';
   return 'Held back by ' + act.map(o => `<b>${esc(o.c.label.toLowerCase())}</b>`).join(', ') + (bounds.length ? '; ' + bounds.slice(0, 2).join(', ') : '');
@@ -247,14 +255,14 @@ function renderReadout() {
   const wname = C.WAVES[M.wave].name.split(' (')[0].toLowerCase();
   const cells = [
     { k: 'Flux at target', v: fx(res.Bpk * 1e3, 2), u: 'mT', sub: `peak, ${fx(P.depth * 100, 1)} cm deep`, big: 1 },
-    { k: 'Coil current', v: fx(res.I, 1), u: 'A', sub: `${wname}, rms ${fx(res.Irms, 1)} A`, cls: stClass(r.g[m === 'a' ? CI.I_a : CI.I_r]) },
+    { k: 'Peak current', v: fx(res.I, 1), u: 'A', sub: `of ${fx(P.drive.Isw, 1)} A budget · ${wname} rms ${fx(res.Irms, 1)} A · source ${fx(res.Ibus, 1)} A`, big: 1, amps: 1, meter: res.I / P.drive.Isw, cls: stClass(r.g[m === 'a' ? CI.I_a : CI.I_r]) },
     { k: 'Induced E at skin', v: fx(res.Epk, 2), u: 'V/m', sub: `reference ${fx(P.Elim, 2)}`, cls: stClass(gi('E_a', 'E_r')) },
     { k: 'Coil temperature', v: fx(res.T.Tend, 0), u: '°C', sub: `after ${fx(M.tsess / 60, 0)} min, limit ${fx(P.thermal.Tmax, 0)}`, cls: stClass(gi('Tc_a', 'Tc_r')) },
     { k: 'Skin temperature', v: fx(res.T.Ts, 1), u: '°C', sub: `limit ${fx(P.thermal.Tskin, 1)}`, cls: stClass(gi('Ts_a', 'Ts_r')) },
     { k: 'Drive voltage', v: fx(res.Vreq, 1), u: 'V', sub: `of ${fx(res.Vav, 1)} V available`, cls: stClass(gi('V_a', 'V_r')) },
     { k: 'Coil heat', v: fx(res.Pcoil, 1), u: 'W', sub: `${fx(res.Pin, 0)} W from source`, cls: stClass(gi('P_a', 'P_r')) }
   ];
-  const html = cells.map(c => `<div class="kpi ${c.big ? 'big' : ''} ${c.cls || ''}"><div class="kk">${esc(c.k)}</div><div class="kv">${c.v}<span>${esc(c.u)}</span></div><div class="ks">${c.cls === 'over' ? '<b class="tag">over limit</b> ' : c.cls === 'bind' ? '<b class="tag">at limit</b> ' : ''}${esc(c.sub)}</div></div>`).join('');
+  const html = cells.map(c => `<div class="kpi ${c.big ? 'big' : ''} ${c.amps ? 'amps' : ''} ${c.cls || ''}"><div class="kk">${esc(c.k)}</div><div class="kv">${c.v}<span>${esc(c.u)}</span></div><div class="ks">${c.cls === 'over' ? '<b class="tag">over limit</b> ' : c.cls === 'bind' ? '<b class="tag">at limit</b> ' : ''}${esc(c.sub)}</div>${c.meter != null ? `<div class="meter"><i style="width:${clamp(c.meter * 100, 0, 100).toFixed(0)}%"></i></div>` : ''}</div>`).join('');
   $('#kpis').innerHTML = html; $('#limitedby').innerHTML = limitedBy();
   $$('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === m));
   $('#modeSeg [data-m=a]').textContent = `Acute ${P.acute.f} Hz`; $('#modeSeg [data-m=r]').textContent = `Recovery ${P.recov.f} Hz`;

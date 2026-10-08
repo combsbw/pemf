@@ -67,6 +67,11 @@ b{font-weight:600}
 .kpis{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:2px}
 .kpi{flex:0 0 auto;min-width:118px;background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);padding:7px 10px;scroll-snap-align:start}
 .kpi.big{background:var(--accent-soft);border-color:transparent;min-width:150px}
+.kpi.amps{min-width:200px;border-color:var(--accent)}
+.kpi.amps .ks{white-space:normal}
+.meter{height:5px;border-radius:3px;background:var(--hair2);margin-top:6px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.kpi.bind .meter i{background:var(--warn)}.kpi.over .meter i{background:var(--bad)}
 .kk{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .kv{font:600 22px/1.15 var(--mono);letter-spacing:-.02em}
 .kv span{font-size:12px;font-weight:400;color:var(--ink2);margin-left:3px}
@@ -74,7 +79,7 @@ b{font-weight:600}
 .kpi.bind{border-color:var(--warn)}.kpi.over{border-color:var(--bad);background:var(--bad-bg)}
 .tag{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;padding:0 6px;border-radius:4px;background:var(--warn-bg);color:var(--warn);margin-right:4px;vertical-align:1px}
 .kpi.over .tag,.lrow.over .tag{background:var(--bad);color:var(--surface)}
-@media (min-width:1040px){.kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));overflow:visible}.kpi,.kpi.big{min-width:0}.ks{white-space:normal}.kv{font-size:20px}}
+@media (min-width:1040px){.kpis{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.5fr) repeat(5,minmax(0,1fr));overflow:visible}.kpi,.kpi.big{min-width:0}.ks{white-space:normal}.kv{font-size:20px}}
 
 /* controls: segmented, chips, buttons */
 .seg{display:inline-flex;background:var(--sunk);border:1px solid var(--hair);border-radius:9px;padding:2px;gap:2px;flex-wrap:wrap}
@@ -253,7 +258,7 @@ ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
 
 </style>
 </head><body>
-<header class="top"><div><h1>Butterfly PEMF coil optimizer</h1><p>Heat against flux, solved with Lagrange multipliers. Change anything on the left; the optimum, every chart and every equation update together.</p></div><div id="status"></div></header>
+<header class="top"><div><h1>Butterfly PEMF coil optimizer</h1><p>Flux against amps, volts and heat, solved with Lagrange multipliers. Change anything on the left; the optimum, every chart and every equation update together.</p></div><div id="status"></div></header>
 <div class="shell">
 <aside id="problem" class="problem" aria-label="Problem inputs"></aside>
 <main class="main">
@@ -295,7 +300,7 @@ ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
       acute: { f: 100, wave: 'sine', duty: 1.0, tsess: 600 },
       recov: { f: 20, wave: 'sine', duty: 1.0, tsess: 3600, Bpk: 0.5e-3 },
       supply: { name: '24 V battery', kind: 'battery', Voc: 24, Rsrc: 0.08, Pmax: 720, capWh: 120 },
-      drive: { Rds: 0.005, Rsh: 0.005, Rwire: 0.02, Dmax: 0.95, fpwm: 20000, tsw: 1.2e-7, Isw: 60 },
+      drive: { Rds: 0.005, Rsh: 0.005, Rwire: 0.02, Dmax: 0.95, fpwm: 20000, tsw: 1.2e-7, Isw: 10 },
       thermal: { Ta: 22, Tcore: 37, hdn: 6, kc: 0.05, ht: 40, spread: 1.5, Cx: 2000, Tmax: 60, Tskin: 41 },
       Elim: 0.8,
       size: { Wmax: 0.40, Lmax: 0.30, Hmax: 0.030, mmax: 2.0, Pcap: Infinity },
@@ -543,7 +548,7 @@ ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
   const VARS = [
     { k: 'wx', label: 'Wing width', unit: 'mm', sc: 1e3, lo: 0.04, hi: 0.20, log: false, dec: 0 },
     { k: 'ly', label: 'Wing length', unit: 'mm', sc: 1e3, lo: 0.08, hi: 0.32, log: false, dec: 0 },
-    { k: 'N', label: 'Turns per wing', unit: '', sc: 1, lo: 2, hi: 100, log: true, dec: 1 },
+    { k: 'N', label: 'Turns per wing', unit: '', sc: 1, lo: 2, hi: 300, log: true, dec: 1 },
     { k: 'awg', label: 'Wire gauge', unit: 'AWG', sc: 1, lo: 8, hi: 28, log: false, dec: 1 },
     { k: 'th', label: 'Bend angle', unit: '°', sc: 180 / PI, lo: -0.1745, hi: 0.6109, log: false, dec: 1 },
     { k: 'b', label: 'Winding band', unit: 'mm', sc: 1e3, lo: 0.008, hi: 0.095, log: false, dec: 0 },
@@ -560,8 +565,8 @@ ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
     { id: 'V_r', label: 'Drive voltage, recovery', unit: 'V', grp: 'drive' },
     { id: 'P_a', label: 'Supply power, acute', unit: 'W', grp: 'drive' },
     { id: 'P_r', label: 'Supply power, recovery', unit: 'W', grp: 'drive' },
-    { id: 'I_a', label: 'Switch current, acute', unit: 'A', grp: 'drive' },
-    { id: 'I_r', label: 'Switch current, recovery', unit: 'A', grp: 'drive' },
+    { id: 'I_a', label: 'Peak current, acute', unit: 'A', grp: 'drive' },
+    { id: 'I_r', label: 'Peak current, recovery', unit: 'A', grp: 'drive' },
     { id: 'W', label: 'Footprint width', unit: 'mm', grp: 'size' },
     { id: 'Ln', label: 'Footprint length', unit: 'mm', grp: 'size' },
     { id: 'H', label: 'Profile height', unit: 'mm', grp: 'size' },
@@ -603,9 +608,9 @@ ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
     if (isFinite(sz.Pcap)) set(18, A.Pcoil, sz.Pcap, sz.Pcap, 'ratio'); else { val[18] = A.Pcoil; lim[18] = Infinity; scl[18] = 1; g[18] = -1; }
     if (isFinite(sp.capWh)) { set(19, A.E_Wh, 0.8 * sp.capWh, 0.8 * sp.capWh, 'ratio'); set(20, Rm.E_Wh, 0.8 * sp.capWh, 0.8 * sp.capWh, 'ratio'); }
     else { val[19] = A.E_Wh; lim[19] = Infinity; scl[19] = 1; g[19] = -1; val[20] = Rm.E_Wh; lim[20] = Infinity; scl[20] = 1; g[20] = -1; }
-    if (P.objective === 'minP') { val[21] = A.Bpk; lim[21] = P.BaReq; scl[21] = P.BaReq; g[21] = 1 - A.Bpk / P.BaReq; }
+    if (P.objective !== 'maxB') { val[21] = A.Bpk; lim[21] = P.BaReq; scl[21] = P.BaReq; g[21] = 1 - A.Bpk / P.BaReq; }
     else { val[21] = A.Bpk; lim[21] = 0; scl[21] = 1; g[21] = -1; }
-    const f = P.objective === 'minP' ? A.Pcoil / 10 : -A.Bpk / 1e-3;
+    const f = P.objective === 'minP' ? A.Pcoil / 10 : P.objective === 'minI' ? Ia / 5 : -A.Bpk / 1e-3;
     return { f, g, val, lim, scl, geo, rg, kB, aE: pa.aE, aEat: pa.at, ind, A, R: Rm, Ir, zT, prof, S, Bp: A.Bpk };
   }
 
@@ -1043,9 +1048,17 @@ const S = {
   snap: null, supplyKey: 'bat24', showAll: false
 };
 S.P.supply = Object.assign({}, C.SUPPLIES.bat24);
+/* objective descriptors: every place that depends on what is being optimized reads from here */
+const OBJ = {
+  maxB: { min: false, name: 'Flux at target', unit: 'mT', fromSol: s => s.Bpk * 1e3, fromR: r => r.A.Bpk * 1e3, f: '−B / 1 mT', fTex: 'f=-B_T/1\\,\\mathrm{mT}', pull: '∇B', slope: 1, dec: 2 },
+  minP: { min: true, name: 'Coil heat', unit: 'W', fromSol: s => s.Pcoil, fromR: r => r.A.Pcoil, f: 'P_coil / 10 W', pull: '−∇P', slope: -10, dec: 1 },
+  minI: { min: true, name: 'Peak current', unit: 'A', fromSol: s => s.x[6], fromR: r => r.A.I, f: 'I / 5 A', pull: '−∇I', slope: -5, dec: 2 }
+};
+const obj = () => OBJ[S.P.objective] || OBJ.maxB;
+const needsB = () => S.P.objective !== 'maxB';
 
 /* ---------- persistence (per-viewer convenience only) ---------- */
-const KEY = 'pemf-butterfly-v1';
+const KEY = 'pemf-butterfly-v2';
 function saveState() { try { localStorage.setItem(KEY, JSON.stringify({ P: S.P, lock: S.lock, supplyKey: S.supplyKey }, (k, v) => v === Infinity ? '∞' : v)); } catch (e) { } }
 function loadState() {
   try {
@@ -1108,7 +1121,7 @@ class Runner {
 const mainRunner = new Runner(), batchRunner = new Runner();
 function clonePSafe(P) { return JSON.parse(JSON.stringify(P, (k, v) => v === Infinity ? '∞' : v), (k, v) => v === '∞' ? Infinity : v); }
 function coldStarts(n) {
-  const base = [[0.55, 0.55, 0.45, 0.2, 0.4, 0.55, 0.5], [0.35, 0.35, 0.35, 0.5, 0.25, 0.4, 0.6], [0.8, 0.8, 0.5, 0.15, 0.45, 0.7, 0.4]];
+  const base = [[0.55, 0.55, 0.45, 0.2, 0.4, 0.55, 0.5], [0.35, 0.35, 0.35, 0.5, 0.25, 0.4, 0.6], [0.8, 0.8, 0.5, 0.15, 0.45, 0.7, 0.4], [0.6, 0.6, 0.7, 0.5, 0.4, 0.5, 0.35]];
   return base.slice(0, n || 2);
 }
 let solveToken = 0;
@@ -1138,8 +1151,9 @@ const P_ = (path, scale) => ({
 });
 const SCHEMA = [
   { sec: 'Target and objective', open: true, items: [
-    { id: 'objective', type: 'seg', label: 'Objective', opts: [['maxB', 'Maximize flux'], ['minP', 'Minimize heat']], ...P_('objective', 1), reflow: true, hint: 'Flux mode pushes B at the target as high as the limits allow. Heat mode fixes the flux you need and minimizes coil dissipation.' },
-    { id: 'BaReq', label: 'Required acute flux', unit: 'mT', min: 0.5, max: 20, step: 0.1, ...P_('BaReq', 1e3), show: P => P.objective === 'minP' },
+    { id: 'objective', type: 'seg', label: 'Objective', opts: [['maxB', 'Max flux'], ['minI', 'Min amps'], ['minP', 'Min heat']], ...P_('objective', 1), reflow: true, hint: 'Max flux pushes B at the target as high as your limits allow. Min amps and Min heat fix the flux you need and then minimize current or coil dissipation.' },
+    { id: 'Isw', label: 'Peak current budget (acute)', unit: 'A', min: 1, max: 60, step: 0.5, ...P_('drive.Isw', 1), hint: 'The most amps your build can handle. The solver trades turns, wire gauge and voltage to stay under it. Recovery current is set by its flux and the same limit applies.' },
+    { id: 'BaReq', label: 'Required acute flux', unit: 'mT', min: 0.5, max: 20, step: 0.1, ...P_('BaReq', 1e3), show: P => P.objective !== 'maxB' },
     { id: 'depth', label: 'Target depth below skin', unit: 'cm', min: 2, max: 12, step: 0.5, ...P_('depth', 100), hint: 'Skin to the disc and nerve root. Lumbar discs are commonly 5 to 8 cm deep.' },
     { id: 'standoff', label: 'Cover and cushion thickness', unit: 'mm', min: 3, max: 30, step: 1, ...P_('standoff', 1e3) },
     { id: 'Brec', label: 'Recovery-mode flux', unit: 'mT', min: 0.05, max: 5, step: 0.05, ...P_('recov.Bpk', 1e3), hint: 'Set directly. Recovery current follows from I = B / k_B.' }
@@ -1163,8 +1177,7 @@ const SCHEMA = [
     { id: 'Pmax', label: 'Supply rating', unit: 'W', min: 20, max: 800, step: 10, ...P_('supply.Pmax', 1), show: P => P.supply.kind === 'wall' },
     { id: 'Imax', label: 'Pack continuous current', unit: 'A', min: 5, max: 80, step: 1, ...P_('supply.Imax', 1), show: P => P.supply.kind === 'battery', after: 'pmax' },
     { id: 'capWh', label: 'Pack energy', unit: 'Wh', min: 20, max: 600, step: 10, ...P_('supply.capWh', 1), show: P => P.supply.kind === 'battery' },
-    { id: 'Rds', label: 'MOSFET on-resistance', unit: 'mΩ', min: 1, max: 60, step: 0.5, ...P_('drive.Rds', 1e3), hint: 'Per device. An H-bridge puts two in the current path.' },
-    { id: 'Isw', label: 'Switch current limit', unit: 'A', min: 10, max: 120, step: 5, ...P_('drive.Isw', 1) }
+    { id: 'Rds', label: 'MOSFET on-resistance', unit: 'mΩ', min: 1, max: 60, step: 0.5, ...P_('drive.Rds', 1e3), hint: 'Per device. An H-bridge puts two in the current path.' }
   ] },
   { sec: 'Heat and comfort', items: [
     { id: 'Tmax', label: 'Coil temperature limit', unit: '°C', min: 35, max: 90, step: 1, ...P_('thermal.Tmax', 1) },
@@ -1269,7 +1282,7 @@ function renderStatus() {
 }
 function limitedBy() {
   if (!S.sol) return '';
-  const lam = S.sol.lam, act = CN.map((c, i) => ({ c, i, l: lam[i] })).filter(o => o.l > 1e-3 && !(S.P.objective !== 'minP' && o.c.id === 'Breq')).sort((a, b) => b.l - a.l).slice(0, 3);
+  const lam = S.sol.lam, act = CN.map((c, i) => ({ c, i, l: lam[i] })).filter(o => o.l > 1e-3 && !(!needsB() && o.c.id === 'Breq')).sort((a, b) => b.l - a.l).slice(0, 3);
   const bounds = S.sol.atBound.map((b, i) => (b === 'lo' || b === 'hi') ? VAR[i].label.toLowerCase() + (b === 'lo' ? ' at minimum' : ' at maximum') : null).filter(Boolean);
   if (!act.length && !bounds.length) return 'No limit is binding: the design is set by the variable ranges.';
   return 'Held back by ' + act.map(o => `<b>${esc(o.c.label.toLowerCase())}</b>`).join(', ') + (bounds.length ? '; ' + bounds.slice(0, 2).join(', ') : '');
@@ -1280,14 +1293,14 @@ function renderReadout() {
   const wname = C.WAVES[M.wave].name.split(' (')[0].toLowerCase();
   const cells = [
     { k: 'Flux at target', v: fx(res.Bpk * 1e3, 2), u: 'mT', sub: `peak, ${fx(P.depth * 100, 1)} cm deep`, big: 1 },
-    { k: 'Coil current', v: fx(res.I, 1), u: 'A', sub: `${wname}, rms ${fx(res.Irms, 1)} A`, cls: stClass(r.g[m === 'a' ? CI.I_a : CI.I_r]) },
+    { k: 'Peak current', v: fx(res.I, 1), u: 'A', sub: `of ${fx(P.drive.Isw, 1)} A budget · ${wname} rms ${fx(res.Irms, 1)} A · source ${fx(res.Ibus, 1)} A`, big: 1, amps: 1, meter: res.I / P.drive.Isw, cls: stClass(r.g[m === 'a' ? CI.I_a : CI.I_r]) },
     { k: 'Induced E at skin', v: fx(res.Epk, 2), u: 'V/m', sub: `reference ${fx(P.Elim, 2)}`, cls: stClass(gi('E_a', 'E_r')) },
     { k: 'Coil temperature', v: fx(res.T.Tend, 0), u: '°C', sub: `after ${fx(M.tsess / 60, 0)} min, limit ${fx(P.thermal.Tmax, 0)}`, cls: stClass(gi('Tc_a', 'Tc_r')) },
     { k: 'Skin temperature', v: fx(res.T.Ts, 1), u: '°C', sub: `limit ${fx(P.thermal.Tskin, 1)}`, cls: stClass(gi('Ts_a', 'Ts_r')) },
     { k: 'Drive voltage', v: fx(res.Vreq, 1), u: 'V', sub: `of ${fx(res.Vav, 1)} V available`, cls: stClass(gi('V_a', 'V_r')) },
     { k: 'Coil heat', v: fx(res.Pcoil, 1), u: 'W', sub: `${fx(res.Pin, 0)} W from source`, cls: stClass(gi('P_a', 'P_r')) }
   ];
-  const html = cells.map(c => `<div class="kpi ${c.big ? 'big' : ''} ${c.cls || ''}"><div class="kk">${esc(c.k)}</div><div class="kv">${c.v}<span>${esc(c.u)}</span></div><div class="ks">${c.cls === 'over' ? '<b class="tag">over limit</b> ' : c.cls === 'bind' ? '<b class="tag">at limit</b> ' : ''}${esc(c.sub)}</div></div>`).join('');
+  const html = cells.map(c => `<div class="kpi ${c.big ? 'big' : ''} ${c.amps ? 'amps' : ''} ${c.cls || ''}"><div class="kk">${esc(c.k)}</div><div class="kv">${c.v}<span>${esc(c.u)}</span></div><div class="ks">${c.cls === 'over' ? '<b class="tag">over limit</b> ' : c.cls === 'bind' ? '<b class="tag">at limit</b> ' : ''}${esc(c.sub)}</div>${c.meter != null ? `<div class="meter"><i style="width:${clamp(c.meter * 100, 0, 100).toFixed(0)}%"></i></div>` : ''}</div>`).join('');
   $('#kpis').innerHTML = html; $('#limitedby').innerHTML = limitedBy();
   $$('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === m));
   $('#modeSeg [data-m=a]').textContent = `Acute ${P.acute.f} Hz`; $('#modeSeg [data-m=r]').textContent = `Recovery ${P.recov.f} Hz`;
@@ -1347,20 +1360,20 @@ TABS.field = {
     });
     const T = res.T; $('#thermNote').innerHTML = `Time constant <b>${isFinite(T.tau) ? fx(T.tau / 60, 0) + ' min' : 'runaway'}</b>, steady state ${isFinite(T.Tss) ? fx(T.Tss, 0) + ' °C' : 'not reached'}. ${T.runaway ? 'Copper resistance rises faster than the coil can shed heat.' : ''}`;
     const w = waveSeries(r, P, m);
-    this.ch.cur.set({ series: [{ name: m === 'a' ? 'Acute i(t)' : 'Recovery i(t)', color: c, pts: w.cur }], hlines: [{ y: P.drive.Isw, label: 'switch limit' }, { y: -P.drive.Isw, label: '' }], yZero: false, xLabel: 'ms', yLabel: 'A', yUnit: 'A', xUnit: 'ms', fmtX: v => v.toFixed(v < 20 ? 1 : 0) });
+    this.ch.cur.set({ series: [{ name: m === 'a' ? 'Acute i(t)' : 'Recovery i(t)', color: c, pts: w.cur }], hlines: [{ y: P.drive.Isw, label: 'current budget' }, { y: -P.drive.Isw, label: '' }], yZero: false, xLabel: 'ms', yLabel: 'A', yUnit: 'A', xUnit: 'ms', fmtX: v => v.toFixed(v < 20 ? 1 : 0) });
     this.ch.volt.set({ series: [{ name: 'v(t) = R i + L di/dt', color: c, pts: w.volt }], hlines: [{ y: res.Vav, label: 'available' }, { y: -res.Vav, label: '' }], yZero: false, xLabel: 'ms', yLabel: 'V', yUnit: 'V', xUnit: 'ms', fmtX: v => v.toFixed(v < 20 ? 1 : 0) });
     $('#voltNote').innerHTML = `Needs <b>${fx(res.Vreq, 1)} V</b> peak of <b>${fx(res.Vav, 1)} V</b> available (${fx(P.drive.Dmax * 100, 0)}% max duty, ${fx(P.supply.Voc, 0)} V source, sag at ${fx(res.Ibus, 1)} A). Inductance ${fx(r.ind.L * 1e6, 0)} µH, resistance ${fx(res.Rhot * 1e3, 0)} mΩ hot.`;
   }
 };
 
 /* ---------------- optimum tab ---------------- */
-const STEP = { Tc_a: [1, '°C', 1], Ts_a: [1, '°C', 1], Tc_r: [1, '°C', 1], Ts_r: [0.5, '°C', 1], E_a: [0.1, 'V/m', 1], E_r: [0.1, 'V/m', 1], V_a: [1, 'V', 1], V_r: [1, 'V', 1], P_a: [10, 'W', 1], P_r: [10, 'W', 1], I_a: [5, 'A', 1], I_r: [5, 'A', 1], W: [10, 'mm', 1e-3], Ln: [10, 'mm', 1e-3], H: [1, 'mm', 1e-3], mCu: [0.1, 'kg', 1], Pcap: [1, 'W', 1], Eb_a: [10, 'Wh', 1], Eb_r: [10, 'Wh', 1], Breq: [1, 'mT', 1e-3] };
+const STEP = { Tc_a: [1, '°C', 1], Ts_a: [1, '°C', 1], Tc_r: [1, '°C', 1], Ts_r: [0.5, '°C', 1], E_a: [0.1, 'V/m', 1], E_r: [0.1, 'V/m', 1], V_a: [1, 'V', 1], V_r: [1, 'V', 1], P_a: [10, 'W', 1], P_r: [10, 'W', 1], I_a: [1, 'A', 1], I_r: [1, 'A', 1], W: [10, 'mm', 1e-3], Ln: [10, 'mm', 1e-3], H: [1, 'mm', 1e-3], mCu: [0.1, 'kg', 1], Pcap: [1, 'W', 1], Eb_a: [10, 'Wh', 1], Eb_r: [10, 'Wh', 1], Breq: [1, 'mT', 1e-3] };
 function shadow(i) {
   const c = CN[i], lam = S.sol ? S.sol.lam[i] : 0; if (!(lam > 1e-4) || !STEP[c.id]) return '';
-  const [step, unit, si] = STEP[c.id], scl = S.r.scl[i], minP = S.P.objective === 'minP';
-  if (c.id === 'Breq') return minP ? `+${fx(10 * lam / S.P.BaReq * step * si, 2)} W per +${step} ${unit}` : '';
-  if (minP) return `−${fx(10 * lam / scl * step * si, 2)} W per +${step} ${unit}`;
-  return `+${fx(1e-3 * lam / scl * step * si * 1e3, 3)} mT per +${step} ${unit}`;
+  const [step, unit, si] = STEP[c.id], scl = S.r.scl[i], ob = obj(), k = Math.abs(ob.slope);
+  if (c.id === 'Breq') return ob.min ? `+${fx(k * lam / S.P.BaReq * step * si, 2)} ${ob.unit} per +${step} ${unit}` : '';
+  if (ob.min) return `−${fx(k * lam / scl * step * si, ob.dec + 1)} ${ob.unit} per +${step} ${unit}`;
+  return `+${fx(lam / scl * step * si, 3)} mT per +${step} ${unit}`;
 }
 function fillFrac(i) {
   const c = CN[i], r = S.r, v = r.val[i], l = r.lim[i], Ta = S.P.thermal.Ta;
@@ -1406,7 +1419,7 @@ TABS.opt = {
     });
   },
   paintLedger() {
-    const rows = CN.map((c, i) => ({ c, i, l: S.sol ? S.sol.lam[i] : 0, f: fillFrac(i) })).filter(o => isFinite(S.r.lim[o.i]) && !(o.c.id === 'Breq' && S.P.objective !== 'minP'));
+    const rows = CN.map((c, i) => ({ c, i, l: S.sol ? S.sol.lam[i] : 0, f: fillFrac(i) })).filter(o => isFinite(S.r.lim[o.i]) && !(o.c.id === 'Breq' && !needsB()));
     rows.sort((a, b) => (b.l > 1e-3) - (a.l > 1e-3) || b.f - a.f);
     const shown = rows.filter(o => S.showAll || o.l > 1e-3 || o.f > 0.6 || S.r.g[o.i] > 1e-3);
     $('#ledger').innerHTML = shown.map(o => {
@@ -1426,7 +1439,7 @@ TABS.opt = {
       <div><span>Active constraints</span><b>${act.length}</b></div>
       <div><span>Model evaluations</span><b>${s.evals}</b></div>
       <div><span>Multiplier iterations</span><b>${tr.length}</b></div></div>
-      <p class="note">${held ? `${held} variable${held > 1 ? 's are' : ' is'} held, so this is the best design with those values fixed. ` : ''}${S.P.objective === 'minP' ? 'Heat mode: objective is coil dissipation.' : 'Flux mode: objective is −B at the target.'} When the stationarity residual is near zero, the objective gradient is exactly balanced by the multiplier-weighted constraint gradients: ∇f + Σ λᵢ ∇gᵢ = 0.</p>`;
+      <p class="note">${held ? `${held} variable${held > 1 ? 's are' : ' is'} held, so this is the best design with those values fixed. ` : ''}${'Objective: ' + (S.P.objective === 'minP' ? 'coil heat' : S.P.objective === 'minI' ? 'peak amps' : 'flux at the target') + '.'} When the stationarity residual is near zero, the objective gradient is exactly balanced by the multiplier-weighted constraint gradients: ∇f + Σ λᵢ ∇gᵢ = 0.</p>`;
   },
   update() { this.paintVars(); this.paintLedger(); this.paintKkt(); }
 };
@@ -1442,7 +1455,7 @@ function sliceCompute() {
     while (row < n && performance.now() - t0 < 14) {
       for (let a = 0; a < n; a++) {
         const u = u0.slice(); u[i] = (a + 0.5) / n; u[j] = (row + 0.5) / n; const r = C.evaluate(C.toX(u), S.P);
-        data.val[row * n + a] = S.P.objective === 'minP' ? r.A.Pcoil : r.A.Bpk * 1e3;
+        data.val[row * n + a] = obj().fromR(r);
         for (let k = 0; k < m; k++) data.G[(row * n + a) * m + k] = r.g[k];
       }
       row++;
@@ -1485,7 +1498,7 @@ TABS.lag = {
   },
   tracked() {
     const lam = S.sol ? S.sol.lam : [], out = [];
-    CN.forEach((c, i) => { if (c.id === 'Breq' && S.P.objective !== 'minP') return; const l = lam[i] || 0; if (l > 1e-3 || (S.r.g[i] > -0.3 && S.r.g[i] < 0.3 && isFinite(S.r.lim[i]))) out.push({ i, l }); });
+    CN.forEach((c, i) => { if (c.id === 'Breq' && !needsB()) return; const l = lam[i] || 0; if (l > 1e-3 || (S.r.g[i] > -0.3 && S.r.g[i] < 0.3 && isFinite(S.r.lim[i]))) out.push({ i, l }); });
     out.sort((a, b) => b.l - a.l || Math.abs(S.r.g[a.i]) - Math.abs(S.r.g[b.i])); return out.slice(0, 6);
   },
   paintSlice() {
@@ -1497,13 +1510,13 @@ TABS.lag = {
     let vmin = Infinity, vmax = -Infinity; const rows = d.done;
     for (let k = 0; k < rows * n; k++) { const v = d.val[k]; if (v < vmin) vmin = v; if (v > vmax) vmax = v; }
     if (!(vmax > vmin)) { vmin = 0; vmax = 1; }
-    const minP = S.P.objective === 'minP';
+    const minP = obj().min;
     const img = new ImageData(n, n), mask = new ImageData(n, n);
     for (let jj = 0; jj < n; jj++) for (let a = 0; a < n; a++) {
       const row = n - 1 - jj, k = row * n + a, o = (jj * n + a) * 4; const done = row < rows;
       let t = done ? (d.val[k] - vmin) / (vmax - vmin) : 0.5; if (minP) t = 1 - t;
       const c = rampColor(done ? t : 0.5, dark); img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = done ? 255 : 90;
-      let mg = -Infinity; if (done) for (let q = 0; q < m; q++) { if (CN[q].id === 'Breq' && !minP) continue; const g = d.G[k * m + q]; if (g > mg) mg = g; }
+      let mg = -Infinity; if (done) for (let q = 0; q < m; q++) { if (CN[q].id === 'Breq' && !needsB()) continue; const g = d.G[k * m + q]; if (g > mg) mg = g; }
       const sc = hex2rgb(surf.length === 7 ? surf : '#ffffff'); mask.data[o] = sc[0]; mask.data[o + 1] = sc[1]; mask.data[o + 2] = sc[2]; mask.data[o + 3] = (done && mg > 1e-6) ? 175 : 0;
     }
     const mk = (id) => { const c = document.createElement('canvas'); c.width = n; c.height = n; c.getContext('2d').putImageData(id, 0, 0); return c; };
@@ -1542,7 +1555,7 @@ TABS.lag = {
     const tickVals = [0, 0.25, 0.5, 0.75, 1];
     ctx.textAlign = 'center'; tickVals.forEach(tv => { const uu = u.slice(); uu[ti] = tv; const xx = C.toX(uu)[ti] * vi.sc; const px = clamp(X(tv), 14, W - 14); ctx.fillStyle = surf; ctx.globalAlpha = .7; ctx.fillRect(px - 16, H - 14, 32, 13); ctx.globalAlpha = 1; ctx.fillStyle = muted; ctx.fillText(fx(xx, vi.dec), px, H - 4); });
     ctx.textAlign = 'left'; tickVals.forEach(tv => { const uu = u.slice(); uu[tj] = tv; const yy = C.toX(uu)[tj] * vj.sc; const py = clamp(Y(tv), 10, H - 18); ctx.fillStyle = surf; ctx.globalAlpha = .7; ctx.fillRect(0, py - 6, 30, 12); ctx.globalAlpha = 1; ctx.fillStyle = muted; ctx.fillText(fx(yy, vj.dec), 2, py + 3.5); });
-    $('#slLegend').innerHTML = `<span class="lg"><i class="sq" style="background:linear-gradient(90deg,${rampHex(0)},${rampHex(1)})"></i>${minP ? 'coil heat' : 'flux at target'} ${fx(vmin, 1)} to ${fx(vmax, 1)} ${minP ? 'W' : 'mT'}</span><span class="lg"><i class="hatch"></i>breaks a limit</span>` + tr.map((o, k) => `<span class="lg"><i style="background:${cssVar(CAT[k % CAT.length])}"></i>${esc(CN[o.i].label)}</span>`).join('') + `<span class="lg"><i class="dot"></i>solver path</span>`;
+    $('#slLegend').innerHTML = `<span class="lg"><i class="sq" style="background:linear-gradient(90deg,${rampHex(0)},${rampHex(1)})"></i>${obj().name.toLowerCase()} ${fx(vmin, 1)} to ${fx(vmax, 1)} ${obj().unit}</span><span class="lg"><i class="hatch"></i>breaks a limit</span>` + tr.map((o, k) => `<span class="lg"><i style="background:${cssVar(CAT[k % CAT.length])}"></i>${esc(CN[o.i].label)}</span>`).join('') + `<span class="lg"><i class="dot"></i>solver path</span>`;
     $('#slNote').innerHTML = rows < n ? 'Computing the landscape…' : `Horizontal: <b>${esc(vi.label)}</b> (${esc(vi.unit)}). Vertical: <b>${esc(vj.label)}</b> (${esc(vj.unit)}). Click anywhere to hold both values and re-optimize the rest.`;
   },
   forces() {
@@ -1554,18 +1567,18 @@ TABS.lag = {
     return { f: [fx_, fy], c: [cx, cy], fMag: Math.hypot(fx_, fy), cMag: Math.hypot(cx, cy) };
   },
   paintSide() {
-    const A = this.arrows || this.forces(); const minP = S.P.objective === 'minP';
+    const A = this.arrows || this.forces(); const minP = obj().min, ob = obj();
     if (A) {
       const dot = (A.f[0] * A.c[0] + A.f[1] * A.c[1]) / ((A.fMag * A.cMag) || 1), bal = A.fMag > 0 ? Math.hypot(A.f[0] + A.c[0], A.f[1] + A.c[1]) / A.fMag : 0;
-      $('#forceBox').innerHTML = `<div class="kgrid"><div><span><i class="sw" style="background:${cssVar('--c1')}"></i>${minP ? '−∇P' : '∇B'} (objective pull)</span><b>${A.fMag.toExponential(2)}</b></div><div><span><i class="sw" style="background:${cssVar('--c2')}"></i>−Σ λᵢ ∇gᵢ (limits push back)</span><b>${A.cMag.toExponential(2)}</b></div><div><span>Alignment (−1 = opposite)</span><b>${fx(dot, 3)}</b></div><div><span>Unbalanced share of pull</span><b>${fx(bal * 100, 1)}%</b></div></div>`;
+      $('#forceBox').innerHTML = `<div class="kgrid"><div><span><i class="sw" style="background:${cssVar('--c1')}"></i>${ob.pull} (objective pull)</span><b>${A.fMag.toExponential(2)}</b></div><div><span><i class="sw" style="background:${cssVar('--c2')}"></i>−Σ λᵢ ∇gᵢ (limits push back)</span><b>${A.cMag.toExponential(2)}</b></div><div><span>Alignment (−1 = opposite)</span><b>${fx(dot, 3)}</b></div><div><span>Unbalanced share of pull</span><b>${fx(bal * 100, 1)}%</b></div></div>`;
     }
     const tr = S.sol && S.sol.trace ? S.sol.trace : [];
     const pts = tr.map((t, k) => [k + 1, Math.log10(Math.max(t.viol, 1e-8))]), pb = tr.map((t, k) => [k + 1, t.B * 1e3]);
     this.conv[0].set({ series: [{ name: 'log₁₀ worst violation', color: cssVar('--c2'), pts, dots: true }], xLabel: 'outer iteration', yLabel: 'log₁₀ g', yZero: false, fmtX: v => v.toFixed(0), yDom: [-8, 1] });
-    this.conv[1].set({ series: [{ name: minP ? 'flux (mT)' : 'flux at target (mT)', color: cssVar('--c1'), pts: pb, dots: true }], xLabel: 'outer iteration', yLabel: 'mT', fmtX: v => v.toFixed(0) });
+    this.conv[1].set({ series: [{ name: 'flux at target (mT)', color: cssVar('--c1'), pts: pb, dots: true }], xLabel: 'outer iteration', yLabel: 'mT', fmtX: v => v.toFixed(0) });
     const r = S.r, lam = S.sol ? S.sol.lam : [], f = r.f; let sum = 0, parts = [];
     CN.forEach((c, i) => { if (lam[i] > 1e-3) { const t = lam[i] * r.g[i]; sum += t; parts.push(`λ<sub>${esc(c.id)}</sub> g = ${(lam[i]).toFixed(3)} × ${r.g[i].toFixed(4)}`); } });
-    $('#lagBox').innerHTML = `<div class="eqline">${tex('\\mathcal{L}(x,\\lambda)=f(x)+\\sum_i \\lambda_i\\,g_i(x)')}</div><p class="note">f = ${minP ? 'P/10 W' : '−B/1 mT'} = <b>${fx(f, 4)}</b> · Σ λᵢ gᵢ = <b>${sum.toExponential(1)}</b> (zero by complementary slackness) · ℒ = <b>${fx(f + sum, 4)}</b>.${parts.length ? '<br>' + parts.join(' · ') : ''}</p>`;
+    $('#lagBox').innerHTML = `<div class="eqline">${tex('\\mathcal{L}(x,\\lambda)=f(x)+\\sum_i \\lambda_i\\,g_i(x)')}</div><p class="note">f = ${ob.f} = <b>${fx(f, 4)}</b> · Σ λᵢ gᵢ = <b>${sum.toExponential(1)}</b> (zero by complementary slackness) · ℒ = <b>${fx(f + sum, 4)}</b>.${parts.length ? '<br>' + parts.join(' · ') : ''}</p>`;
   }
 };
 function rampHex(t) { const c = rampColor(t, isDark()); return `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`; }
@@ -1574,6 +1587,7 @@ function rampHex(t) { const c = rampColor(t, isDark()); return `rgb(${c[0] | 0},
 
 /* ---------------- trade-offs ---------------- */
 const AXES = {
+  Imax: { label: 'Peak current budget', unit: 'A', vals: [3, 5, 7, 10, 14, 20, 28, 40, 60], set: (P, v) => { P.drive.Isw = v; }, cons: 'I_a', k: 1 },
   Pcap: { label: 'Heat budget (acute)', unit: 'W', vals: [4, 7, 10, 14, 20, 28, 40, 55, 75], set: (P, v) => { P.size.Pcap = v; }, cons: 'Pcap', k: 1 },
   Tmax: { label: 'Coil temperature limit', unit: '°C', vals: [40, 45, 50, 55, 60, 65, 70, 75, 80], set: (P, v) => { P.thermal.Tmax = v; }, cons: 'Tc_a', k: 1 },
   tsess: { label: 'Acute session length', unit: 'min', vals: [2, 5, 8, 12, 17, 23, 30, 45, 60], set: (P, v) => { P.acute.tsess = v * 60; } },
@@ -1585,10 +1599,10 @@ const AXES = {
 };
 function axisCurrent(key) {
   const P = S.P;
-  return { Pcap: P.size.Pcap, Tmax: P.thermal.Tmax, tsess: P.acute.tsess / 60, duty: P.acute.duty * 100, depth: P.depth * 100, mmax: P.size.mmax, Hmax: P.size.Hmax * 1e3, Elim: P.Elim }[key];
+  return { Imax: P.drive.Isw, Pcap: P.size.Pcap, Tmax: P.thermal.Tmax, tsess: P.acute.tsess / 60, duty: P.acute.duty * 100, depth: P.depth * 100, mmax: P.size.mmax, Hmax: P.size.Hmax * 1e3, Elim: P.Elim }[key];
 }
-const metric = res => S.P.objective === 'minP' ? res.Pcoil : res.Bpk * 1e3;
-const metricName = () => S.P.objective === 'minP' ? ['Coil heat', 'W'] : ['Flux at target', 'mT'];
+const metric = res => obj().fromSol(res);
+const metricName = () => [obj().name, obj().unit];
 let sweepTimer = null;
 function sweepSoon() { clearTimeout(sweepTimer); sweepTimer = setTimeout(runTrade, 600); }
 function runTrade() {
@@ -1597,7 +1611,7 @@ function runTrade() {
   const jobs = ax.vals.map((v, k) => { const P = clonePSafe(P0); ax.set(P, v); return { P, warm: k > 0, opt: Object.assign({ lock: S.lock.slice(), maxOuter: 8, maxInner: 60 }, k === 0 ? { starts: [S.sol.u], lam0: S.sol.lam } : {}) }; });
   S.sweep.busy = true; S.sweep.stale = false; S.sweep.data = { key, pts: [] }; const data = S.sweep.data;
   if (TABS.trade.built) TABS.trade.paintSweep();
-  batchRunner.start({ type: 'batch', jobs }, (k, res) => { data.pts.push({ v: ax.vals[k], res }); if (S.tab === 'trade') TABS.trade.paintSweep(); }).then(() => {
+  batchRunner.start({ type: 'batch', jobs }, (k, res) => { let ev = null; try { ev = C.evaluate(res.x, jobs[k].P).A; } catch (e) { } data.pts.push({ v: ax.vals[k], res, ev }); if (S.tab === 'trade') TABS.trade.paintSweep(); }).then(() => {
     S.sweep.busy = false; if (S.tab === 'trade') TABS.trade.paintSweep();
     runSupplies();
   }).catch(e => { if (e !== 'cancelled') { S.sweep.busy = false; } });
@@ -1620,17 +1634,17 @@ TABS.trade = {
   },
   update() { if (this.built) { this.paintSweep(); this.paintSupplies(); } if ((S.sweep.stale || S.supplyCmp.stale) && !S.sweep.busy && !S.supplyCmp.busy) sweepSoon(); },
   paintSweep() {
-    const d = S.sweep.data, key = S.sweep.axis, ax = AXES[key], [mn, mu] = metricName(); const cur = axisCurrent(key), minP = S.P.objective === 'minP';
+    const d = S.sweep.data, key = S.sweep.axis, ax = AXES[key], [mn, mu] = metricName(); const cur = axisCurrent(key), minP = obj().min;
     const st = $('#swState'); st.hidden = !(S.sweep.busy || S.sweep.stale); st.innerHTML = S.sweep.busy ? `<i class="spin"></i>Solving ${d ? d.pts.length : 0} of ${ax.vals.length}` : '<i class="spin"></i>Queued';
     const pts = d && d.key === key ? d.pts.slice().sort((a, b) => a.v - b.v) : [];
     const ok = pts.filter(p => p.res.kkt.viol < 5e-3), series = [{ name: mn + ' (best design at each setting)', color: cssVar('--c1'), pts: ok.map(p => [p.v, metric(p.res)]), dots: true }];
     const bad = pts.filter(p => p.res.kkt.viol >= 5e-3); if (bad.length) series.push({ name: 'No feasible design', color: cssVar('--c3'), pts: bad.map(p => [p.v, metric(p.res)]), dots: true, w: 0 });
-    const markers = [], y0 = S.sol ? (minP ? S.sol.Pcoil : S.sol.Bpk * 1e3) : 0;
+    const markers = [], y0 = S.sol ? obj().fromSol(S.sol) : 0;
     let xc = cur; if (key === 'Pcap' && !isFinite(cur)) xc = S.r.A.Pcoil;
     if (S.sol && isFinite(xc)) {
       markers.push({ x: xc, y: y0, color: cssVar('--ink'), label: 'now' });
       if (ax.cons && CI[ax.cons] != null) {
-        const i = CI[ax.cons], lam = S.sol.lam[i], scl = S.r.scl[i], slope = (minP ? -10 : 1) * lam / scl * ax.k, xs = ok.length ? ok.map(p => p.v) : [xc], span = (Math.max(...xs) - Math.min(...xs)) * 0.22 || xc * 0.2;
+        const i = CI[ax.cons], lam = S.sol.lam[i], scl = S.r.scl[i], slope = obj().slope * lam / scl * ax.k, xs = ok.length ? ok.map(p => p.v) : [xc], span = (Math.max(...xs) - Math.min(...xs)) * 0.22 || xc * 0.2;
         series.push({ name: `Tangent from λ = ${lam.toFixed(3)}`, color: cssVar('--c2'), dash: '6 4', w: 1.8, pts: [[xc - span, y0 - slope * span], [xc + span, y0 + slope * span]] });
       }
     }
@@ -1641,12 +1655,12 @@ TABS.trade = {
     const names = VAR.map(v => v.label), ser = VAR.map((v, i) => ({ name: v.label, color: cssVar(CAT[i % CAT.length]), pts: ok.map(p => [p.v, p.res.u[i]]), w: 1.8 }));
     this.adapt.set({ series: ser, yDom: [0, 1], xLabel: `${ax.label} (${ax.unit})`, yLabel: 'position in range', yZero: false, tipY: v => v.toFixed(2) });
     const rows = pts.map(p => { const x = p.res.x, lamI = p.res.lam.map((l, i) => ({ l, i })).sort((a, b) => b.l - a.l)[0]; const top = lamI && lamI.l > 1e-3 ? CN[lamI.i].label : 'none';
-      return `<tr><td>${fx(p.v, ax.vals[0] < 2 ? 2 : 1)}</td><td>${fx(metric(p.res), 2)}</td><td>${fx(x[0] * 1e3, 0)} × ${fx(x[1] * 1e3, 0)}</td><td>${fx(x[2], 1)}</td><td>${fx(x[3], 1)}</td><td>${fx(x[4] * 180 / Math.PI, 1)}°</td><td>${fx(x[6], 1)}</td><td class="l">${esc(top)}</td></tr>`; }).join('');
-    $('#swTable').innerHTML = rows ? `<table><thead><tr><th>${esc(ax.unit)}</th><th>${esc(mu)}</th><th>Wing mm</th><th>Turns</th><th>AWG</th><th>Bend</th><th>Amps</th><th class="l">Top limit</th></tr></thead><tbody>${rows}</tbody></table>` : '';
+      return `<tr><td>${fx(p.v, ax.vals[0] < 2 ? 2 : 1)}</td><td>${fx(metric(p.res), 2)}</td><td>${fx(x[0] * 1e3, 0)} × ${fx(x[1] * 1e3, 0)}</td><td>${fx(x[2], 1)}</td><td>${fx(x[3], 1)}</td><td>${fx(x[4] * 180 / Math.PI, 1)}°</td><td><b>${fx(x[6], 1)}</b></td><td>${p.ev ? fx(p.ev.Vreq, 1) : ''}</td><td>${p.ev ? fx(p.ev.Pcoil, 1) : ''}</td><td class="l">${esc(top)}</td></tr>`; }).join('');
+    $('#swTable').innerHTML = rows ? `<table><thead><tr><th>${esc(ax.unit)}</th><th>${esc(mu)}</th><th>Wing mm</th><th>Turns</th><th>AWG</th><th>Bend</th><th>Amps</th><th>Volts</th><th>Heat W</th><th class="l">Top limit</th></tr></thead><tbody>${rows}</tbody></table>` : '';
   },
   paintSupplies() {
     const d = S.supplyCmp.data; if (!d) { $('#supBars').innerHTML = '<p class="note">Waiting for the first sweep to finish.</p>'; return; }
-    const [mn, mu] = metricName(), minP = S.P.objective === 'minP', vals = d.filter(o => o.res).map(o => metric(o.res));
+    const [mn, mu] = metricName(), minP = obj().min, vals = d.filter(o => o.res).map(o => metric(o.res));
     const mx = Math.max(...vals, 1e-9), curKey = S.supplyKey;
     $('#supBars').innerHTML = d.map(o => {
       const nm = C.SUPPLIES[o.key].name; if (!o.res) return `<div class="sbar"><span class="sn">${esc(nm)}</span><div class="sbt"><i style="width:0"></i></div><span class="sv mut">solving…</span></div>`;
@@ -1657,7 +1671,7 @@ TABS.trade = {
     if (ok.length > 1 && !S.supplyCmp.busy) {
       const best = ok.reduce((a, o) => (minP ? metric(o.res) < metric(a.res) : metric(o.res) > metric(a.res)) ? o : a, ok[0]), worst = ok.reduce((a, o) => (minP ? metric(o.res) > metric(a.res) : metric(o.res) < metric(a.res)) ? o : a, ok[0]);
       const sp = Math.abs(metric(best.res) / metric(worst.res) - 1) * 100;
-      $('#supNote').innerHTML = sp < 4 ? 'The source barely matters here: heat, not voltage, sets the result. A smaller supply is enough.' : `${esc(C.SUPPLIES[best.key].name)} gives the best result, ${fx(sp, 0)}% ${minP ? 'less heat' : 'more flux'} than ${esc(C.SUPPLIES[worst.key].name)}.`;
+      $('#supNote').innerHTML = sp < 4 ? 'The source barely matters here: heat or current sets the result, not voltage. A smaller supply is enough.' : `${esc(C.SUPPLIES[best.key].name)} gives the best result, ${fx(sp, 0)}% ${minP ? 'less heat' : 'more flux'} than ${esc(C.SUPPLIES[worst.key].name)}.`;
     } else $('#supNote').innerHTML = '';
   }
 };
@@ -1677,6 +1691,7 @@ function eqList() {
     { g: 'geo', t: 'Copper mass and profile height', e: 'm=\\rho_{Cu}\\,\\ell_w A_{Cu},\\qquad H=t+w\\sin\\theta', v: `m = ${fx(g.mcu, 2)} kg (about $${fx(g.mcu * P.price, 0)} of wire), H = ${fx(r.prof * 1e3, 1)} mm at ${fx(th, 1)}° bend`, n: 'The raised edge of each bent wing sets the profile you lie on.' },
     { g: 'field', t: 'Field of one straight segment (Biot–Savart)', e: '\\vec B=\\frac{\\mu_0 I}{4\\pi\\,d_\\perp}\\left(\\sin\\alpha_2-\\sin\\alpha_1\\right)\\,\\hat t\\times\\hat d', v: `Summed over ${r.S ? 'all' : ''} winding filaments of both wings at the target`, n: 'Exact for a finite straight wire. The coil is thousands of such segments, so there is no far-field or loop approximation.' },
     { g: 'field', t: 'Flux at the target', e: 'B_T=k_B\\,I,\\qquad k_B=\\left|\\sum_{\\mathrm{seg}}\\vec b_{seg}(0,0,z_T)\\right|', v: `z_T = ${fx(r.zT * 100, 1)} cm, k_B = ${fx(r.kB * 1e3, 3)} mT/A, I = ${fx(res.I, 1)} A → B = ${fx(res.Bpk * 1e3, 2)} mT`, n: 'Linear in current, so the optimizer only needs k_B from geometry and I from the heat and voltage limits.' },
+    { g: 'field', t: 'Amps against turns', e: 'I=\\frac{B_T}{k_B},\\quad k_B\\approx N\\,k_1,\\quad P_{coil}\\propto\\frac{(N I)^{2}}{m_{Cu}}', v: `${fx(g.N, 1)} turns × ${fx(res.I, 1)} A = ${fx(g.N * res.I, 0)} ampere-turns per wing for ${fx(res.Bpk * 1e3, 2)} mT; heat ${fx(res.Pcoil, 1)} W from ${fx(g.mcu, 2)} kg of copper`, n: 'Flux needs ampere-turns, and heat is set by ampere-turns and copper mass, not by amps alone. Fewer amps means more turns, which raises inductance and the voltage you need. That is the amps, volts and heat tradeoff.' },
     { g: 'field', t: 'Recovery current', e: 'I_r=\\frac{B_r}{k_B}', v: `${fx(P.recov.Bpk * 1e3, 2)} mT / ${fx(r.kB * 1e3, 3)} mT/A = ${fx(r.Ir, 2)} A`, n: 'Recovery flux is a setting, not a variable, so its current follows from the geometry.' },
     { g: 'efield', t: 'Faraday’s law', e: '\\vec E=-\\frac{\\partial \\vec A}{\\partial t}-\\nabla\\varphi\\ \\approx\\ -\\frac{\\partial \\vec A}{\\partial t}', v: 'Half-space tissue, tangential component, no charge build-up term', n: 'A conservative simplification: surface charge on real tissue boundaries redistributes the field, so verify with FEM before relying on it.' },
     { g: 'efield', t: 'Vector potential of a segment', e: '\\vec A=\\frac{\\mu_0 I}{4\\pi}\\,\\hat t\\left[\\mathrm{asinh}\\frac{s_2}{d_\\perp}-\\mathrm{asinh}\\frac{s_1}{d_\\perp}\\right]', v: `Peak over the skin surface: a_E = ${eng(r.aE, 'Wb/m/A', 3)}`, n: 'Closed form, summed over all segments. The maximum is searched on a grid across the skin under the coil.' },
@@ -1690,7 +1705,7 @@ function eqList() {
     { g: 'therm', t: 'Lumped thermal node', e: 'C\\,\\frac{dT}{dt}=P_0\\left[1+\\alpha(T-20)\\right]-G\\,(T-T_{ref})', v: `C = ${fx(T.C, 0)} J/K, G = ${fx(T.G, 2)} W/K, T_ref = ${fx(T.Tref, 1)} °C, P0 = ${fx(T.P0, 1)} W`, n: 'Copper heats itself, loses heat to the air below and through the cover to the body above. Resistance rises with temperature, so heating feeds on itself.' },
     { g: 'therm', t: 'Closed-form temperature', e: 'T(t)=T_{ref}+f_0\\,t\\,\\frac{1-e^{-\\lambda t}}{\\lambda t},\\qquad \\lambda=\\frac{G-\\alpha P_0}{C}', v: T.runaway ? 'λ ≤ 0: thermal runaway, heat generated grows faster than it can leave' : `λ = ${sig(T.lam, 3)} /s, τ = ${fx(T.tau / 60, 1)} min, steady state ${fx(T.Tss, 1)} °C, after ${fx(M.tsess / 60, 0)} min ${fx(T.Tend, 1)} °C`, n: 'Exact solution of the linearized node, so the session limit is checked without time stepping.' },
     { g: 'therm', t: 'Conductances and skin temperature', e: 'G=A_{th}\\left(h_{dn}+U_{up}\\right),\\quad U_{up}=\\left(\\frac{h_0}{k_c}+\\frac{1}{h_t}\\right)^{-1},\\quad T_s=T_{core}+\\frac{U_{up}}{h_t}(T-T_{core})', v: `U_up = ${fx(T.Uup, 2)} W/m²K, A_th = ${fx(T.Ath * 1e4, 0)} cm², skin = ${fx(T.Ts, 1)} °C (limit ${fx(P.thermal.Tskin, 1)})`, n: 'The cover is the thermal path to the patient: thicker or more insulating cover keeps skin cooler but also traps heat in the coil.' },
-    { g: 'opt', t: 'The constrained problem', e: '\\min_{x}\\ f(x)\\quad\\mathrm{s.t.}\\quad g_i(x)\\le 0,\\ \\ i=1\\ldots 22', v: `f = ${P.objective === 'minP' ? 'P_coil / 10 W' : '−B_T / 1 mT'} = ${fx(r.f, 4)};  x = [w, ℓ, N, AWG, θ, b, I]`, n: 'Every limit is written as a normalized g ≤ 0 so 1 means “100% over”.' },
+    { g: 'opt', t: 'The constrained problem', e: '\\min_{x}\\ f(x)\\quad\\mathrm{s.t.}\\quad g_i(x)\\le 0,\\ \\ i=1\\ldots 22', v: `f = ${obj().f} = ${fx(r.f, 4)};  x = [w, ℓ, N, AWG, θ, b, I]`, n: 'Every limit is written as a normalized g ≤ 0 so 1 means “100% over”.' },
     { g: 'opt', t: 'Lagrangian and KKT conditions', e: '\\mathcal{L}=f+\\sum_i\\lambda_i g_i,\\quad \\nabla f+\\sum_i\\lambda_i\\nabla g_i=0,\\quad \\lambda_i\\ge 0,\\quad \\lambda_i g_i=0', v: S.sol ? `stationarity ${S.sol.kkt.stat.toExponential(1)}, violation ${S.sol.kkt.viol.toExponential(1)}, complementarity ${S.sol.kkt.comp.toExponential(1)}` : 'not solved yet', n: 'At the optimum the objective’s pull is exactly cancelled by the active limits. A multiplier of zero means the limit is slack.' },
     { g: 'opt', t: 'Augmented Lagrangian solver', e: '\\mathcal{L}_A=f+\\sum_i\\frac{1}{2\\rho}\\left[\\max(0,\\lambda_i+\\rho g_i)^{2}-\\lambda_i^{2}\\right],\\quad \\lambda_i\\leftarrow\\max(0,\\lambda_i+\\rho g_i)', v: S.sol ? `${(S.sol.trace || []).length} outer iterations, ${S.sol.evals} model evaluations` : '', n: 'Each outer step minimizes ℒ_A with projected BFGS on a normalized [0,1] box (log scale for N and I), then updates the multipliers.' },
     { g: 'opt', t: 'Shadow price of a limit', e: '\\frac{\\partial B^{*}}{\\partial\\,\\mathrm{limit}_i}=\\frac{\\lambda_i}{s_i}\\ \\mathrm{mT}', v: top.length ? top.map(o => `${CN[CI[o.c.id]].label}: λ = ${o.l.toFixed(3)}`).join(' · ') : 'No active limits', n: 'How much the best achievable flux changes if you relax that limit by one unit. This is the quantity the trade-off tab verifies by re-solving.' }
@@ -1703,7 +1718,7 @@ TABS.eq = {
   },
   update() {
     const list = eqList(), bind = new Set();
-    const lam = S.sol ? S.sol.lam : []; CN.forEach((c, i) => { if ((lam[i] || 0) > 1e-3 && !(c.id === 'Breq' && S.P.objective !== 'minP')) bind.add(CGRP(c)); });
+    const lam = S.sol ? S.sol.lam : []; CN.forEach((c, i) => { if ((lam[i] || 0) > 1e-3 && !(c.id === 'Breq' && !needsB())) bind.add(CGRP(c)); });
     $('#eqChips').innerHTML = [['all', 'All']].concat(EQG).map(([k, n]) => `<button type="button" data-g="${k}" aria-pressed="${this.f === k}">${esc(n)}${bind.has(k) ? '<i class="bd" title="Contains a binding limit"></i>' : ''}</button>`).join('');
     const fl = list.filter(q => this.f === 'all' || q.g === this.f);
     $('#eqList').innerHTML = EQG.filter(([k]) => fl.some(q => q.g === k)).map(([k, n]) => `<section class="card eqg"><h3>${esc(n)}${bind.has(k) ? '<span class="tag">binding limit here</span>' : ''}</h3>${fl.filter(q => q.g === k).map(q => `<div class="eq"><div class="eqt">${esc(q.t)}</div><div class="eqf">${tex(q.e)}</div><div class="eqv"><span>Now</span> ${esc(q.v)}</div><p class="note">${esc(q.n)}</p></div>`).join('')}</section>`).join('');
@@ -1735,8 +1750,7 @@ TABS.build = {
       card('Snap to buildable values', '<div class="btnrow"><button type="button" class="btn" id="snapBtn">Compare whole-number options</button></div><div id="snapOut"></div>', '', 'Tries every combination of the neighbouring wire gauges and whole turn counts, and re-optimizes the bend, size, band and current around each.') +
       card('Continuum model against real turns', '<div id="discBox"></div>', '', 'The optimizer treats the winding as a smooth band of current. This compares that against the same coil with every turn placed individually.') +
       card('Drive electronics', '<div id="drvBox"></div>') +
-      card('Before you energize it', '<ul class="check" id="chk"></ul>') +
-      card('Settings for the ESP32-S3', '<pre class="code" id="espOut" tabindex="0"></pre><div class="btnrow"><button type="button" class="btn" id="cpEsp">Copy constants</button><button type="button" class="btn ghost" id="cpJson">Copy design as JSON</button></div>', '', 'Constants only. The firmware must still measure coil temperature and current and cut the drive if either goes out of range.');
+      card('Settings for the ESP32-S3', '<pre class="code" id="espOut" tabindex="0"></pre><div class="btnrow"><button type="button" class="btn" id="cpEsp">Copy constants</button><button type="button" class="btn ghost" id="cpJson">Copy design as JSON</button></div>', '', 'Constants for your firmware.');
     $('#snapBtn').addEventListener('click', runSnap);
     $('#snapOut').addEventListener('click', e => { const b = e.target.closest('[data-adopt]'); if (!b) return; const row = S.snap.rows[+b.dataset.adopt]; S.lock[2] = row.c.N; S.lock[3] = row.c.awg; S.snap = null; solveNow(); saveSoon(); $('#tabs [data-tab=opt]').focus(); });
     $('#cpEsp').addEventListener('click', e => copyText(this.esp, e.target));
@@ -1750,6 +1764,7 @@ TABS.build = {
       ['Turns', `${fx(g.N, 1)} per wing  (${dc.N} when rounded: ${rg.npl} per layer × ${rg.Ld} layer${rg.Ld > 1 ? 's' : ''})`],
       ['Wing', `${fx(g.wx * 1e3, 0)} mm wide × ${fx(g.ly * 1e3, 0)} mm long, winding band ${fx(g.b * 1e3, 0)} mm, thickness ${fx(g.t * 1e3, 1)} mm`],
       ['Bend', `${fx(g.th * 180 / Math.PI, 1)}° per wing, ${fx(P.gap * 1e3, 0)} mm hinge gap, profile ${fx(r.prof * 1e3, 1)} mm`],
+      ['Current', `${fx(A.I, 1)} A peak acute (rms ${fx(A.Irms, 1)} A, budget ${fx(P.drive.Isw, 1)} A), ${fx(R.I, 1)} A peak recovery, ${fx(A.Ibus, 1)} A average from the source`],
       ['Copper', `${fx(g.lw, 1)} m total, ${fx(g.mcu, 2)} kg, about $${fx(g.mcu * P.price, 0)}`],
       ['Electrical', `${fx(g.R20 * 1e3, 0)} mΩ cold, ${fx(A.Rhot * 1e3, 0)} mΩ hot, ${fx(r.ind.L * 1e6, 0)} µH, current density ${fx(A.Irms / (g.Acu * 1e6), 1)} A/mm² rms`],
       ['Footprint', `${fx((2 * g.wx + P.gap) * 1e3, 0)} × ${fx(g.ly * 1e3, 0)} mm`]
@@ -1771,14 +1786,7 @@ TABS.build = {
       ['FET conduction loss', `${fx(Pfet, 1)} W total in the bridge at the acute setting, plus ${fx(A.Psw, 2)} W switching`],
       ['Bus current', `${fx(A.Ibus, 1)} A average from the source; fuse at ${fx(1.25 * A.Ibus + 2, 0)} A`]
     ].map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`;
-    $('#chk').innerHTML = [
-      `Thermistor on the coil and another under the cover. The firmware stops the drive above ${fx(P.thermal.Tmax - 5, 0)} °C coil or ${fx(P.thermal.Tskin - 0.5, 1)} °C skin.`,
-      `Hardware current limit near ${fx(1.25 * Ia, 0)} A that does not depend on the firmware running.`,
-      'Power the electronics from a certified isolated supply or a battery, never from an unisolated one while you lie on the coil.',
-      `Check the induced field against your own limit (${fx(P.Elim, 2)} V/m is set here). Reference values vary by standard and population; this model is a conservative estimate, not a measurement.`,
-      'Measure the real flux with a Hall probe and compare with this model before treating any number as a dose.',
-      'This tool designs hardware. It does not say what flux or frequency helps a spinal condition; talk to a clinician about that.'
-    ].map(t => `<li>${esc(t)}</li>`).join('');
+
     const nm = x => String(x).replace(/\./g, '_');
     this.esp = `// generated by the butterfly PEMF optimizer\nconst float V_BUS_V        = ${fx(P.supply.Voc, 1)}f;\nconst float F_ACUTE_HZ     = ${P.acute.f}.0f;\nconst float I_ACUTE_PK_A   = ${fx(A.I, 2)}f;\nconst uint32_t T_ACUTE_S   = ${Math.round(P.acute.tsess)};\nconst float DUTY_ACUTE     = ${fx(P.acute.duty, 2)}f;\nconst float F_RECOV_HZ     = ${P.recov.f}.0f;\nconst float I_RECOV_PK_A   = ${fx(R.I, 2)}f;\nconst uint32_t T_RECOV_S   = ${Math.round(P.recov.tsess)};\nconst float DUTY_RECOV     = ${fx(P.recov.duty, 2)}f;\nconst float I_HW_LIMIT_A   = ${fx(1.25 * Math.max(A.I, R.I), 1)}f;\nconst float T_COIL_CUT_C   = ${fx(P.thermal.Tmax - 5, 0)}f;\nconst float T_SKIN_CUT_C   = ${fx(P.thermal.Tskin - 0.5, 1)}f;\nconst float PWM_HZ         = ${P.drive.fpwm}.0f;\nconst float SHUNT_OHM      = ${fx(P.drive.Rsh, 4)}f;\nconst float MAX_DUTY       = ${fx(P.drive.Dmax, 2)}f;`;
     $('#espOut').textContent = this.esp;
@@ -1787,9 +1795,9 @@ TABS.build = {
   paintSnap() {
     const el = $('#snapOut'); if (!el) return; const s = S.snap;
     if (!s) { el.innerHTML = ''; return; }
-    const ok = s.rows.filter(Boolean).filter(o => o.res.kkt.viol < 5e-3), minP = S.P.objective === 'minP';
+    const ok = s.rows.filter(Boolean).filter(o => o.res.kkt.viol < 5e-3), minP = obj().min;
     const best = ok.length ? ok.reduce((a, o) => (minP ? metric(o.res) < metric(a.res) : metric(o.res) > metric(a.res)) ? o : a, ok[0]) : null;
-    const [mn, mu] = metricName(), cont = minP ? S.sol.Pcoil : S.sol.Bpk * 1e3;
+    const [mn, mu] = metricName(), cont = obj().fromSol(S.sol);
     el.innerHTML = `<div class="tablewrap"><table><thead><tr><th class="l">Option</th><th>${esc(mn)}, ${esc(mu)}</th><th>Change</th><th>Wing mm</th><th>Bend</th><th>Amps</th><th></th></tr></thead><tbody>
       <tr class="ref"><td class="l">Continuous optimum</td><td>${fx(cont, 2)}</td><td>–</td><td>${fx(S.x[0] * 1e3, 0)} × ${fx(S.x[1] * 1e3, 0)}</td><td>${fx(S.x[4] * 180 / Math.PI, 1)}°</td><td>${fx(S.x[6], 1)}</td><td></td></tr>
       ${s.combos.map((c, k) => { const o = s.rows[k]; if (!o) return `<tr><td class="l">AWG ${c.awg}, ${c.N} turns</td><td colspan="6" class="mut">solving…</td></tr>`; const x = o.res.x, v = metric(o.res), feas = o.res.kkt.viol < 5e-3;
@@ -1799,7 +1807,7 @@ TABS.build = {
 
 /* ---------------- tab registry, render, init ---------------- */
 const TAB_LIST = [['field', 'Field'], ['opt', 'Optimum'], ['lag', 'Lagrangian'], ['trade', 'Trade-offs'], ['eq', 'Equations'], ['build', 'Build sheet']];
-S.sweep.axis = 'Pcap';
+S.sweep.axis = 'Imax';
 function showTab(id) {
   S.tab = id; const t = TABS[id], host = $('#panel_' + id);
   if (!t.built) { t.build(host); t.built = true; }

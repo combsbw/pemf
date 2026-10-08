@@ -52,20 +52,20 @@ TABS.field = {
     });
     const T = res.T; $('#thermNote').innerHTML = `Time constant <b>${isFinite(T.tau) ? fx(T.tau / 60, 0) + ' min' : 'runaway'}</b>, steady state ${isFinite(T.Tss) ? fx(T.Tss, 0) + ' °C' : 'not reached'}. ${T.runaway ? 'Copper resistance rises faster than the coil can shed heat.' : ''}`;
     const w = waveSeries(r, P, m);
-    this.ch.cur.set({ series: [{ name: m === 'a' ? 'Acute i(t)' : 'Recovery i(t)', color: c, pts: w.cur }], hlines: [{ y: P.drive.Isw, label: 'switch limit' }, { y: -P.drive.Isw, label: '' }], yZero: false, xLabel: 'ms', yLabel: 'A', yUnit: 'A', xUnit: 'ms', fmtX: v => v.toFixed(v < 20 ? 1 : 0) });
+    this.ch.cur.set({ series: [{ name: m === 'a' ? 'Acute i(t)' : 'Recovery i(t)', color: c, pts: w.cur }], hlines: [{ y: P.drive.Isw, label: 'current budget' }, { y: -P.drive.Isw, label: '' }], yZero: false, xLabel: 'ms', yLabel: 'A', yUnit: 'A', xUnit: 'ms', fmtX: v => v.toFixed(v < 20 ? 1 : 0) });
     this.ch.volt.set({ series: [{ name: 'v(t) = R i + L di/dt', color: c, pts: w.volt }], hlines: [{ y: res.Vav, label: 'available' }, { y: -res.Vav, label: '' }], yZero: false, xLabel: 'ms', yLabel: 'V', yUnit: 'V', xUnit: 'ms', fmtX: v => v.toFixed(v < 20 ? 1 : 0) });
     $('#voltNote').innerHTML = `Needs <b>${fx(res.Vreq, 1)} V</b> peak of <b>${fx(res.Vav, 1)} V</b> available (${fx(P.drive.Dmax * 100, 0)}% max duty, ${fx(P.supply.Voc, 0)} V source, sag at ${fx(res.Ibus, 1)} A). Inductance ${fx(r.ind.L * 1e6, 0)} µH, resistance ${fx(res.Rhot * 1e3, 0)} mΩ hot.`;
   }
 };
 
 /* ---------------- optimum tab ---------------- */
-const STEP = { Tc_a: [1, '°C', 1], Ts_a: [1, '°C', 1], Tc_r: [1, '°C', 1], Ts_r: [0.5, '°C', 1], E_a: [0.1, 'V/m', 1], E_r: [0.1, 'V/m', 1], V_a: [1, 'V', 1], V_r: [1, 'V', 1], P_a: [10, 'W', 1], P_r: [10, 'W', 1], I_a: [5, 'A', 1], I_r: [5, 'A', 1], W: [10, 'mm', 1e-3], Ln: [10, 'mm', 1e-3], H: [1, 'mm', 1e-3], mCu: [0.1, 'kg', 1], Pcap: [1, 'W', 1], Eb_a: [10, 'Wh', 1], Eb_r: [10, 'Wh', 1], Breq: [1, 'mT', 1e-3] };
+const STEP = { Tc_a: [1, '°C', 1], Ts_a: [1, '°C', 1], Tc_r: [1, '°C', 1], Ts_r: [0.5, '°C', 1], E_a: [0.1, 'V/m', 1], E_r: [0.1, 'V/m', 1], V_a: [1, 'V', 1], V_r: [1, 'V', 1], P_a: [10, 'W', 1], P_r: [10, 'W', 1], I_a: [1, 'A', 1], I_r: [1, 'A', 1], W: [10, 'mm', 1e-3], Ln: [10, 'mm', 1e-3], H: [1, 'mm', 1e-3], mCu: [0.1, 'kg', 1], Pcap: [1, 'W', 1], Eb_a: [10, 'Wh', 1], Eb_r: [10, 'Wh', 1], Breq: [1, 'mT', 1e-3] };
 function shadow(i) {
   const c = CN[i], lam = S.sol ? S.sol.lam[i] : 0; if (!(lam > 1e-4) || !STEP[c.id]) return '';
-  const [step, unit, si] = STEP[c.id], scl = S.r.scl[i], minP = S.P.objective === 'minP';
-  if (c.id === 'Breq') return minP ? `+${fx(10 * lam / S.P.BaReq * step * si, 2)} W per +${step} ${unit}` : '';
-  if (minP) return `−${fx(10 * lam / scl * step * si, 2)} W per +${step} ${unit}`;
-  return `+${fx(1e-3 * lam / scl * step * si * 1e3, 3)} mT per +${step} ${unit}`;
+  const [step, unit, si] = STEP[c.id], scl = S.r.scl[i], ob = obj(), k = Math.abs(ob.slope);
+  if (c.id === 'Breq') return ob.min ? `+${fx(k * lam / S.P.BaReq * step * si, 2)} ${ob.unit} per +${step} ${unit}` : '';
+  if (ob.min) return `−${fx(k * lam / scl * step * si, ob.dec + 1)} ${ob.unit} per +${step} ${unit}`;
+  return `+${fx(lam / scl * step * si, 3)} mT per +${step} ${unit}`;
 }
 function fillFrac(i) {
   const c = CN[i], r = S.r, v = r.val[i], l = r.lim[i], Ta = S.P.thermal.Ta;
@@ -111,7 +111,7 @@ TABS.opt = {
     });
   },
   paintLedger() {
-    const rows = CN.map((c, i) => ({ c, i, l: S.sol ? S.sol.lam[i] : 0, f: fillFrac(i) })).filter(o => isFinite(S.r.lim[o.i]) && !(o.c.id === 'Breq' && S.P.objective !== 'minP'));
+    const rows = CN.map((c, i) => ({ c, i, l: S.sol ? S.sol.lam[i] : 0, f: fillFrac(i) })).filter(o => isFinite(S.r.lim[o.i]) && !(o.c.id === 'Breq' && !needsB()));
     rows.sort((a, b) => (b.l > 1e-3) - (a.l > 1e-3) || b.f - a.f);
     const shown = rows.filter(o => S.showAll || o.l > 1e-3 || o.f > 0.6 || S.r.g[o.i] > 1e-3);
     $('#ledger').innerHTML = shown.map(o => {
@@ -131,7 +131,7 @@ TABS.opt = {
       <div><span>Active constraints</span><b>${act.length}</b></div>
       <div><span>Model evaluations</span><b>${s.evals}</b></div>
       <div><span>Multiplier iterations</span><b>${tr.length}</b></div></div>
-      <p class="note">${held ? `${held} variable${held > 1 ? 's are' : ' is'} held, so this is the best design with those values fixed. ` : ''}${S.P.objective === 'minP' ? 'Heat mode: objective is coil dissipation.' : 'Flux mode: objective is −B at the target.'} When the stationarity residual is near zero, the objective gradient is exactly balanced by the multiplier-weighted constraint gradients: ∇f + Σ λᵢ ∇gᵢ = 0.</p>`;
+      <p class="note">${held ? `${held} variable${held > 1 ? 's are' : ' is'} held, so this is the best design with those values fixed. ` : ''}${'Objective: ' + (S.P.objective === 'minP' ? 'coil heat' : S.P.objective === 'minI' ? 'peak amps' : 'flux at the target') + '.'} When the stationarity residual is near zero, the objective gradient is exactly balanced by the multiplier-weighted constraint gradients: ∇f + Σ λᵢ ∇gᵢ = 0.</p>`;
   },
   update() { this.paintVars(); this.paintLedger(); this.paintKkt(); }
 };
@@ -147,7 +147,7 @@ function sliceCompute() {
     while (row < n && performance.now() - t0 < 14) {
       for (let a = 0; a < n; a++) {
         const u = u0.slice(); u[i] = (a + 0.5) / n; u[j] = (row + 0.5) / n; const r = C.evaluate(C.toX(u), S.P);
-        data.val[row * n + a] = S.P.objective === 'minP' ? r.A.Pcoil : r.A.Bpk * 1e3;
+        data.val[row * n + a] = obj().fromR(r);
         for (let k = 0; k < m; k++) data.G[(row * n + a) * m + k] = r.g[k];
       }
       row++;
@@ -190,7 +190,7 @@ TABS.lag = {
   },
   tracked() {
     const lam = S.sol ? S.sol.lam : [], out = [];
-    CN.forEach((c, i) => { if (c.id === 'Breq' && S.P.objective !== 'minP') return; const l = lam[i] || 0; if (l > 1e-3 || (S.r.g[i] > -0.3 && S.r.g[i] < 0.3 && isFinite(S.r.lim[i]))) out.push({ i, l }); });
+    CN.forEach((c, i) => { if (c.id === 'Breq' && !needsB()) return; const l = lam[i] || 0; if (l > 1e-3 || (S.r.g[i] > -0.3 && S.r.g[i] < 0.3 && isFinite(S.r.lim[i]))) out.push({ i, l }); });
     out.sort((a, b) => b.l - a.l || Math.abs(S.r.g[a.i]) - Math.abs(S.r.g[b.i])); return out.slice(0, 6);
   },
   paintSlice() {
@@ -202,13 +202,13 @@ TABS.lag = {
     let vmin = Infinity, vmax = -Infinity; const rows = d.done;
     for (let k = 0; k < rows * n; k++) { const v = d.val[k]; if (v < vmin) vmin = v; if (v > vmax) vmax = v; }
     if (!(vmax > vmin)) { vmin = 0; vmax = 1; }
-    const minP = S.P.objective === 'minP';
+    const minP = obj().min;
     const img = new ImageData(n, n), mask = new ImageData(n, n);
     for (let jj = 0; jj < n; jj++) for (let a = 0; a < n; a++) {
       const row = n - 1 - jj, k = row * n + a, o = (jj * n + a) * 4; const done = row < rows;
       let t = done ? (d.val[k] - vmin) / (vmax - vmin) : 0.5; if (minP) t = 1 - t;
       const c = rampColor(done ? t : 0.5, dark); img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = done ? 255 : 90;
-      let mg = -Infinity; if (done) for (let q = 0; q < m; q++) { if (CN[q].id === 'Breq' && !minP) continue; const g = d.G[k * m + q]; if (g > mg) mg = g; }
+      let mg = -Infinity; if (done) for (let q = 0; q < m; q++) { if (CN[q].id === 'Breq' && !needsB()) continue; const g = d.G[k * m + q]; if (g > mg) mg = g; }
       const sc = hex2rgb(surf.length === 7 ? surf : '#ffffff'); mask.data[o] = sc[0]; mask.data[o + 1] = sc[1]; mask.data[o + 2] = sc[2]; mask.data[o + 3] = (done && mg > 1e-6) ? 175 : 0;
     }
     const mk = (id) => { const c = document.createElement('canvas'); c.width = n; c.height = n; c.getContext('2d').putImageData(id, 0, 0); return c; };
@@ -247,7 +247,7 @@ TABS.lag = {
     const tickVals = [0, 0.25, 0.5, 0.75, 1];
     ctx.textAlign = 'center'; tickVals.forEach(tv => { const uu = u.slice(); uu[ti] = tv; const xx = C.toX(uu)[ti] * vi.sc; const px = clamp(X(tv), 14, W - 14); ctx.fillStyle = surf; ctx.globalAlpha = .7; ctx.fillRect(px - 16, H - 14, 32, 13); ctx.globalAlpha = 1; ctx.fillStyle = muted; ctx.fillText(fx(xx, vi.dec), px, H - 4); });
     ctx.textAlign = 'left'; tickVals.forEach(tv => { const uu = u.slice(); uu[tj] = tv; const yy = C.toX(uu)[tj] * vj.sc; const py = clamp(Y(tv), 10, H - 18); ctx.fillStyle = surf; ctx.globalAlpha = .7; ctx.fillRect(0, py - 6, 30, 12); ctx.globalAlpha = 1; ctx.fillStyle = muted; ctx.fillText(fx(yy, vj.dec), 2, py + 3.5); });
-    $('#slLegend').innerHTML = `<span class="lg"><i class="sq" style="background:linear-gradient(90deg,${rampHex(0)},${rampHex(1)})"></i>${minP ? 'coil heat' : 'flux at target'} ${fx(vmin, 1)} to ${fx(vmax, 1)} ${minP ? 'W' : 'mT'}</span><span class="lg"><i class="hatch"></i>breaks a limit</span>` + tr.map((o, k) => `<span class="lg"><i style="background:${cssVar(CAT[k % CAT.length])}"></i>${esc(CN[o.i].label)}</span>`).join('') + `<span class="lg"><i class="dot"></i>solver path</span>`;
+    $('#slLegend').innerHTML = `<span class="lg"><i class="sq" style="background:linear-gradient(90deg,${rampHex(0)},${rampHex(1)})"></i>${obj().name.toLowerCase()} ${fx(vmin, 1)} to ${fx(vmax, 1)} ${obj().unit}</span><span class="lg"><i class="hatch"></i>breaks a limit</span>` + tr.map((o, k) => `<span class="lg"><i style="background:${cssVar(CAT[k % CAT.length])}"></i>${esc(CN[o.i].label)}</span>`).join('') + `<span class="lg"><i class="dot"></i>solver path</span>`;
     $('#slNote').innerHTML = rows < n ? 'Computing the landscape…' : `Horizontal: <b>${esc(vi.label)}</b> (${esc(vi.unit)}). Vertical: <b>${esc(vj.label)}</b> (${esc(vj.unit)}). Click anywhere to hold both values and re-optimize the rest.`;
   },
   forces() {
@@ -259,18 +259,18 @@ TABS.lag = {
     return { f: [fx_, fy], c: [cx, cy], fMag: Math.hypot(fx_, fy), cMag: Math.hypot(cx, cy) };
   },
   paintSide() {
-    const A = this.arrows || this.forces(); const minP = S.P.objective === 'minP';
+    const A = this.arrows || this.forces(); const minP = obj().min, ob = obj();
     if (A) {
       const dot = (A.f[0] * A.c[0] + A.f[1] * A.c[1]) / ((A.fMag * A.cMag) || 1), bal = A.fMag > 0 ? Math.hypot(A.f[0] + A.c[0], A.f[1] + A.c[1]) / A.fMag : 0;
-      $('#forceBox').innerHTML = `<div class="kgrid"><div><span><i class="sw" style="background:${cssVar('--c1')}"></i>${minP ? '−∇P' : '∇B'} (objective pull)</span><b>${A.fMag.toExponential(2)}</b></div><div><span><i class="sw" style="background:${cssVar('--c2')}"></i>−Σ λᵢ ∇gᵢ (limits push back)</span><b>${A.cMag.toExponential(2)}</b></div><div><span>Alignment (−1 = opposite)</span><b>${fx(dot, 3)}</b></div><div><span>Unbalanced share of pull</span><b>${fx(bal * 100, 1)}%</b></div></div>`;
+      $('#forceBox').innerHTML = `<div class="kgrid"><div><span><i class="sw" style="background:${cssVar('--c1')}"></i>${ob.pull} (objective pull)</span><b>${A.fMag.toExponential(2)}</b></div><div><span><i class="sw" style="background:${cssVar('--c2')}"></i>−Σ λᵢ ∇gᵢ (limits push back)</span><b>${A.cMag.toExponential(2)}</b></div><div><span>Alignment (−1 = opposite)</span><b>${fx(dot, 3)}</b></div><div><span>Unbalanced share of pull</span><b>${fx(bal * 100, 1)}%</b></div></div>`;
     }
     const tr = S.sol && S.sol.trace ? S.sol.trace : [];
     const pts = tr.map((t, k) => [k + 1, Math.log10(Math.max(t.viol, 1e-8))]), pb = tr.map((t, k) => [k + 1, t.B * 1e3]);
     this.conv[0].set({ series: [{ name: 'log₁₀ worst violation', color: cssVar('--c2'), pts, dots: true }], xLabel: 'outer iteration', yLabel: 'log₁₀ g', yZero: false, fmtX: v => v.toFixed(0), yDom: [-8, 1] });
-    this.conv[1].set({ series: [{ name: minP ? 'flux (mT)' : 'flux at target (mT)', color: cssVar('--c1'), pts: pb, dots: true }], xLabel: 'outer iteration', yLabel: 'mT', fmtX: v => v.toFixed(0) });
+    this.conv[1].set({ series: [{ name: 'flux at target (mT)', color: cssVar('--c1'), pts: pb, dots: true }], xLabel: 'outer iteration', yLabel: 'mT', fmtX: v => v.toFixed(0) });
     const r = S.r, lam = S.sol ? S.sol.lam : [], f = r.f; let sum = 0, parts = [];
     CN.forEach((c, i) => { if (lam[i] > 1e-3) { const t = lam[i] * r.g[i]; sum += t; parts.push(`λ<sub>${esc(c.id)}</sub> g = ${(lam[i]).toFixed(3)} × ${r.g[i].toFixed(4)}`); } });
-    $('#lagBox').innerHTML = `<div class="eqline">${tex('\\mathcal{L}(x,\\lambda)=f(x)+\\sum_i \\lambda_i\\,g_i(x)')}</div><p class="note">f = ${minP ? 'P/10 W' : '−B/1 mT'} = <b>${fx(f, 4)}</b> · Σ λᵢ gᵢ = <b>${sum.toExponential(1)}</b> (zero by complementary slackness) · ℒ = <b>${fx(f + sum, 4)}</b>.${parts.length ? '<br>' + parts.join(' · ') : ''}</p>`;
+    $('#lagBox').innerHTML = `<div class="eqline">${tex('\\mathcal{L}(x,\\lambda)=f(x)+\\sum_i \\lambda_i\\,g_i(x)')}</div><p class="note">f = ${ob.f} = <b>${fx(f, 4)}</b> · Σ λᵢ gᵢ = <b>${sum.toExponential(1)}</b> (zero by complementary slackness) · ℒ = <b>${fx(f + sum, 4)}</b>.${parts.length ? '<br>' + parts.join(' · ') : ''}</p>`;
   }
 };
 function rampHex(t) { const c = rampColor(t, isDark()); return `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`; }

@@ -14,7 +14,7 @@ html=f'''<!doctype html>
 {css}
 </style>
 </head><body>
-<header class="top"><div><h1>Butterfly PEMF coil optimizer</h1><p>Heat against flux, solved with Lagrange multipliers. Change anything on the left; the optimum, every chart and every equation update together.</p></div><div id="status"></div></header>
+<header class="top"><div><h1>Butterfly PEMF coil optimizer</h1><p>Flux against amps, volts and heat, solved with Lagrange multipliers. Change anything on the left; the optimum, every chart and every equation update together.</p></div><div id="status"></div></header>
 <div class="shell">
 <aside id="problem" class="problem" aria-label="Problem inputs"></aside>
 <main class="main">

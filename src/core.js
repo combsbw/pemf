@@ -29,7 +29,7 @@
       acute: { f: 100, wave: 'sine', duty: 1.0, tsess: 600 },
       recov: { f: 20, wave: 'sine', duty: 1.0, tsess: 3600, Bpk: 0.5e-3 },
       supply: { name: '24 V battery', kind: 'battery', Voc: 24, Rsrc: 0.08, Pmax: 720, capWh: 120 },
-      drive: { Rds: 0.005, Rsh: 0.005, Rwire: 0.02, Dmax: 0.95, fpwm: 20000, tsw: 1.2e-7, Isw: 60 },
+      drive: { Rds: 0.005, Rsh: 0.005, Rwire: 0.02, Dmax: 0.95, fpwm: 20000, tsw: 1.2e-7, Isw: 10 },
       thermal: { Ta: 22, Tcore: 37, hdn: 6, kc: 0.05, ht: 40, spread: 1.5, Cx: 2000, Tmax: 60, Tskin: 41 },
       Elim: 0.8,
       size: { Wmax: 0.40, Lmax: 0.30, Hmax: 0.030, mmax: 2.0, Pcap: Infinity },
@@ -277,7 +277,7 @@
   const VARS = [
     { k: 'wx', label: 'Wing width', unit: 'mm', sc: 1e3, lo: 0.04, hi: 0.20, log: false, dec: 0 },
     { k: 'ly', label: 'Wing length', unit: 'mm', sc: 1e3, lo: 0.08, hi: 0.32, log: false, dec: 0 },
-    { k: 'N', label: 'Turns per wing', unit: '', sc: 1, lo: 2, hi: 100, log: true, dec: 1 },
+    { k: 'N', label: 'Turns per wing', unit: '', sc: 1, lo: 2, hi: 300, log: true, dec: 1 },
     { k: 'awg', label: 'Wire gauge', unit: 'AWG', sc: 1, lo: 8, hi: 28, log: false, dec: 1 },
     { k: 'th', label: 'Bend angle', unit: '°', sc: 180 / PI, lo: -0.1745, hi: 0.6109, log: false, dec: 1 },
     { k: 'b', label: 'Winding band', unit: 'mm', sc: 1e3, lo: 0.008, hi: 0.095, log: false, dec: 0 },
@@ -294,8 +294,8 @@
     { id: 'V_r', label: 'Drive voltage, recovery', unit: 'V', grp: 'drive' },
     { id: 'P_a', label: 'Supply power, acute', unit: 'W', grp: 'drive' },
     { id: 'P_r', label: 'Supply power, recovery', unit: 'W', grp: 'drive' },
-    { id: 'I_a', label: 'Switch current, acute', unit: 'A', grp: 'drive' },
-    { id: 'I_r', label: 'Switch current, recovery', unit: 'A', grp: 'drive' },
+    { id: 'I_a', label: 'Peak current, acute', unit: 'A', grp: 'drive' },
+    { id: 'I_r', label: 'Peak current, recovery', unit: 'A', grp: 'drive' },
     { id: 'W', label: 'Footprint width', unit: 'mm', grp: 'size' },
     { id: 'Ln', label: 'Footprint length', unit: 'mm', grp: 'size' },
     { id: 'H', label: 'Profile height', unit: 'mm', grp: 'size' },
@@ -337,9 +337,9 @@
     if (isFinite(sz.Pcap)) set(18, A.Pcoil, sz.Pcap, sz.Pcap, 'ratio'); else { val[18] = A.Pcoil; lim[18] = Infinity; scl[18] = 1; g[18] = -1; }
     if (isFinite(sp.capWh)) { set(19, A.E_Wh, 0.8 * sp.capWh, 0.8 * sp.capWh, 'ratio'); set(20, Rm.E_Wh, 0.8 * sp.capWh, 0.8 * sp.capWh, 'ratio'); }
     else { val[19] = A.E_Wh; lim[19] = Infinity; scl[19] = 1; g[19] = -1; val[20] = Rm.E_Wh; lim[20] = Infinity; scl[20] = 1; g[20] = -1; }
-    if (P.objective === 'minP') { val[21] = A.Bpk; lim[21] = P.BaReq; scl[21] = P.BaReq; g[21] = 1 - A.Bpk / P.BaReq; }
+    if (P.objective !== 'maxB') { val[21] = A.Bpk; lim[21] = P.BaReq; scl[21] = P.BaReq; g[21] = 1 - A.Bpk / P.BaReq; }
     else { val[21] = A.Bpk; lim[21] = 0; scl[21] = 1; g[21] = -1; }
-    const f = P.objective === 'minP' ? A.Pcoil / 10 : -A.Bpk / 1e-3;
+    const f = P.objective === 'minP' ? A.Pcoil / 10 : P.objective === 'minI' ? Ia / 5 : -A.Bpk / 1e-3;
     return { f, g, val, lim, scl, geo, rg, kB, aE: pa.aE, aEat: pa.at, ind, A, R: Rm, Ir, zT, prof, S, Bp: A.Bpk };
   }
 

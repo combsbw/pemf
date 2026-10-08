@@ -1,6 +1,6 @@
 # Butterfly PEMF coil optimizer
 
-An interactive, single-page design tool for a bent butterfly (figure-8) air-core PEMF coil. It solves heat against flux as a constrained optimization with an augmented Lagrangian, and shows every governing equation, constraint price (multiplier), field map, trade-off sweep and a build sheet, all linked to one set of inputs.
+An interactive, single-page design tool for a bent butterfly (figure-8) air-core PEMF coil. It solves flux against amps, volts and heat as a constrained optimization (peak current is a first-class budget and a selectable objective) with an augmented Lagrangian, and shows every governing equation, constraint price (multiplier), field map, trade-off sweep and a build sheet, all linked to one set of inputs.
 
 **Live page:** https://combsbw.github.io/pemf/
 

@@ -2,6 +2,7 @@
 
 /* ---------------- trade-offs ---------------- */
 const AXES = {
+  Imax: { label: 'Peak current budget', unit: 'A', vals: [3, 5, 7, 10, 14, 20, 28, 40, 60], set: (P, v) => { P.drive.Isw = v; }, cons: 'I_a', k: 1 },
   Pcap: { label: 'Heat budget (acute)', unit: 'W', vals: [4, 7, 10, 14, 20, 28, 40, 55, 75], set: (P, v) => { P.size.Pcap = v; }, cons: 'Pcap', k: 1 },
   Tmax: { label: 'Coil temperature limit', unit: '°C', vals: [40, 45, 50, 55, 60, 65, 70, 75, 80], set: (P, v) => { P.thermal.Tmax = v; }, cons: 'Tc_a', k: 1 },
   tsess: { label: 'Acute session length', unit: 'min', vals: [2, 5, 8, 12, 17, 23, 30, 45, 60], set: (P, v) => { P.acute.tsess = v * 60; } },
@@ -13,10 +14,10 @@ const AXES = {
 };
 function axisCurrent(key) {
   const P = S.P;
-  return { Pcap: P.size.Pcap, Tmax: P.thermal.Tmax, tsess: P.acute.tsess / 60, duty: P.acute.duty * 100, depth: P.depth * 100, mmax: P.size.mmax, Hmax: P.size.Hmax * 1e3, Elim: P.Elim }[key];
+  return { Imax: P.drive.Isw, Pcap: P.size.Pcap, Tmax: P.thermal.Tmax, tsess: P.acute.tsess / 60, duty: P.acute.duty * 100, depth: P.depth * 100, mmax: P.size.mmax, Hmax: P.size.Hmax * 1e3, Elim: P.Elim }[key];
 }
-const metric = res => S.P.objective === 'minP' ? res.Pcoil : res.Bpk * 1e3;
-const metricName = () => S.P.objective === 'minP' ? ['Coil heat', 'W'] : ['Flux at target', 'mT'];
+const metric = res => obj().fromSol(res);
+const metricName = () => [obj().name, obj().unit];
 let sweepTimer = null;
 function sweepSoon() { clearTimeout(sweepTimer); sweepTimer = setTimeout(runTrade, 600); }
 function runTrade() {
@@ -25,7 +26,7 @@ function runTrade() {
   const jobs = ax.vals.map((v, k) => { const P = clonePSafe(P0); ax.set(P, v); return { P, warm: k > 0, opt: Object.assign({ lock: S.lock.slice(), maxOuter: 8, maxInner: 60 }, k === 0 ? { starts: [S.sol.u], lam0: S.sol.lam } : {}) }; });
   S.sweep.busy = true; S.sweep.stale = false; S.sweep.data = { key, pts: [] }; const data = S.sweep.data;
   if (TABS.trade.built) TABS.trade.paintSweep();
-  batchRunner.start({ type: 'batch', jobs }, (k, res) => { data.pts.push({ v: ax.vals[k], res }); if (S.tab === 'trade') TABS.trade.paintSweep(); }).then(() => {
+  batchRunner.start({ type: 'batch', jobs }, (k, res) => { let ev = null; try { ev = C.evaluate(res.x, jobs[k].P).A; } catch (e) { } data.pts.push({ v: ax.vals[k], res, ev }); if (S.tab === 'trade') TABS.trade.paintSweep(); }).then(() => {
     S.sweep.busy = false; if (S.tab === 'trade') TABS.trade.paintSweep();
     runSupplies();
   }).catch(e => { if (e !== 'cancelled') { S.sweep.busy = false; } });
@@ -48,17 +49,17 @@ TABS.trade = {
   },
   update() { if (this.built) { this.paintSweep(); this.paintSupplies(); } if ((S.sweep.stale || S.supplyCmp.stale) && !S.sweep.busy && !S.supplyCmp.busy) sweepSoon(); },
   paintSweep() {
-    const d = S.sweep.data, key = S.sweep.axis, ax = AXES[key], [mn, mu] = metricName(); const cur = axisCurrent(key), minP = S.P.objective === 'minP';
+    const d = S.sweep.data, key = S.sweep.axis, ax = AXES[key], [mn, mu] = metricName(); const cur = axisCurrent(key), minP = obj().min;
     const st = $('#swState'); st.hidden = !(S.sweep.busy || S.sweep.stale); st.innerHTML = S.sweep.busy ? `<i class="spin"></i>Solving ${d ? d.pts.length : 0} of ${ax.vals.length}` : '<i class="spin"></i>Queued';
     const pts = d && d.key === key ? d.pts.slice().sort((a, b) => a.v - b.v) : [];
     const ok = pts.filter(p => p.res.kkt.viol < 5e-3), series = [{ name: mn + ' (best design at each setting)', color: cssVar('--c1'), pts: ok.map(p => [p.v, metric(p.res)]), dots: true }];
     const bad = pts.filter(p => p.res.kkt.viol >= 5e-3); if (bad.length) series.push({ name: 'No feasible design', color: cssVar('--c3'), pts: bad.map(p => [p.v, metric(p.res)]), dots: true, w: 0 });
-    const markers = [], y0 = S.sol ? (minP ? S.sol.Pcoil : S.sol.Bpk * 1e3) : 0;
+    const markers = [], y0 = S.sol ? obj().fromSol(S.sol) : 0;
     let xc = cur; if (key === 'Pcap' && !isFinite(cur)) xc = S.r.A.Pcoil;
     if (S.sol && isFinite(xc)) {
       markers.push({ x: xc, y: y0, color: cssVar('--ink'), label: 'now' });
       if (ax.cons && CI[ax.cons] != null) {
-        const i = CI[ax.cons], lam = S.sol.lam[i], scl = S.r.scl[i], slope = (minP ? -10 : 1) * lam / scl * ax.k, xs = ok.length ? ok.map(p => p.v) : [xc], span = (Math.max(...xs) - Math.min(...xs)) * 0.22 || xc * 0.2;
+        const i = CI[ax.cons], lam = S.sol.lam[i], scl = S.r.scl[i], slope = obj().slope * lam / scl * ax.k, xs = ok.length ? ok.map(p => p.v) : [xc], span = (Math.max(...xs) - Math.min(...xs)) * 0.22 || xc * 0.2;
         series.push({ name: `Tangent from λ = ${lam.toFixed(3)}`, color: cssVar('--c2'), dash: '6 4', w: 1.8, pts: [[xc - span, y0 - slope * span], [xc + span, y0 + slope * span]] });
       }
     }
@@ -69,12 +70,12 @@ TABS.trade = {
     const names = VAR.map(v => v.label), ser = VAR.map((v, i) => ({ name: v.label, color: cssVar(CAT[i % CAT.length]), pts: ok.map(p => [p.v, p.res.u[i]]), w: 1.8 }));
     this.adapt.set({ series: ser, yDom: [0, 1], xLabel: `${ax.label} (${ax.unit})`, yLabel: 'position in range', yZero: false, tipY: v => v.toFixed(2) });
     const rows = pts.map(p => { const x = p.res.x, lamI = p.res.lam.map((l, i) => ({ l, i })).sort((a, b) => b.l - a.l)[0]; const top = lamI && lamI.l > 1e-3 ? CN[lamI.i].label : 'none';
-      return `<tr><td>${fx(p.v, ax.vals[0] < 2 ? 2 : 1)}</td><td>${fx(metric(p.res), 2)}</td><td>${fx(x[0] * 1e3, 0)} × ${fx(x[1] * 1e3, 0)}</td><td>${fx(x[2], 1)}</td><td>${fx(x[3], 1)}</td><td>${fx(x[4] * 180 / Math.PI, 1)}°</td><td>${fx(x[6], 1)}</td><td class="l">${esc(top)}</td></tr>`; }).join('');
-    $('#swTable').innerHTML = rows ? `<table><thead><tr><th>${esc(ax.unit)}</th><th>${esc(mu)}</th><th>Wing mm</th><th>Turns</th><th>AWG</th><th>Bend</th><th>Amps</th><th class="l">Top limit</th></tr></thead><tbody>${rows}</tbody></table>` : '';
+      return `<tr><td>${fx(p.v, ax.vals[0] < 2 ? 2 : 1)}</td><td>${fx(metric(p.res), 2)}</td><td>${fx(x[0] * 1e3, 0)} × ${fx(x[1] * 1e3, 0)}</td><td>${fx(x[2], 1)}</td><td>${fx(x[3], 1)}</td><td>${fx(x[4] * 180 / Math.PI, 1)}°</td><td><b>${fx(x[6], 1)}</b></td><td>${p.ev ? fx(p.ev.Vreq, 1) : ''}</td><td>${p.ev ? fx(p.ev.Pcoil, 1) : ''}</td><td class="l">${esc(top)}</td></tr>`; }).join('');
+    $('#swTable').innerHTML = rows ? `<table><thead><tr><th>${esc(ax.unit)}</th><th>${esc(mu)}</th><th>Wing mm</th><th>Turns</th><th>AWG</th><th>Bend</th><th>Amps</th><th>Volts</th><th>Heat W</th><th class="l">Top limit</th></tr></thead><tbody>${rows}</tbody></table>` : '';
   },
   paintSupplies() {
     const d = S.supplyCmp.data; if (!d) { $('#supBars').innerHTML = '<p class="note">Waiting for the first sweep to finish.</p>'; return; }
-    const [mn, mu] = metricName(), minP = S.P.objective === 'minP', vals = d.filter(o => o.res).map(o => metric(o.res));
+    const [mn, mu] = metricName(), minP = obj().min, vals = d.filter(o => o.res).map(o => metric(o.res));
     const mx = Math.max(...vals, 1e-9), curKey = S.supplyKey;
     $('#supBars').innerHTML = d.map(o => {
       const nm = C.SUPPLIES[o.key].name; if (!o.res) return `<div class="sbar"><span class="sn">${esc(nm)}</span><div class="sbt"><i style="width:0"></i></div><span class="sv mut">solving…</span></div>`;
@@ -85,7 +86,7 @@ TABS.trade = {
     if (ok.length > 1 && !S.supplyCmp.busy) {
       const best = ok.reduce((a, o) => (minP ? metric(o.res) < metric(a.res) : metric(o.res) > metric(a.res)) ? o : a, ok[0]), worst = ok.reduce((a, o) => (minP ? metric(o.res) > metric(a.res) : metric(o.res) < metric(a.res)) ? o : a, ok[0]);
       const sp = Math.abs(metric(best.res) / metric(worst.res) - 1) * 100;
-      $('#supNote').innerHTML = sp < 4 ? 'The source barely matters here: heat, not voltage, sets the result. A smaller supply is enough.' : `${esc(C.SUPPLIES[best.key].name)} gives the best result, ${fx(sp, 0)}% ${minP ? 'less heat' : 'more flux'} than ${esc(C.SUPPLIES[worst.key].name)}.`;
+      $('#supNote').innerHTML = sp < 4 ? 'The source barely matters here: heat or current sets the result, not voltage. A smaller supply is enough.' : `${esc(C.SUPPLIES[best.key].name)} gives the best result, ${fx(sp, 0)}% ${minP ? 'less heat' : 'more flux'} than ${esc(C.SUPPLIES[worst.key].name)}.`;
     } else $('#supNote').innerHTML = '';
   }
 };
@@ -105,6 +106,7 @@ function eqList() {
     { g: 'geo', t: 'Copper mass and profile height', e: 'm=\\rho_{Cu}\\,\\ell_w A_{Cu},\\qquad H=t+w\\sin\\theta', v: `m = ${fx(g.mcu, 2)} kg (about $${fx(g.mcu * P.price, 0)} of wire), H = ${fx(r.prof * 1e3, 1)} mm at ${fx(th, 1)}° bend`, n: 'The raised edge of each bent wing sets the profile you lie on.' },
     { g: 'field', t: 'Field of one straight segment (Biot–Savart)', e: '\\vec B=\\frac{\\mu_0 I}{4\\pi\\,d_\\perp}\\left(\\sin\\alpha_2-\\sin\\alpha_1\\right)\\,\\hat t\\times\\hat d', v: `Summed over ${r.S ? 'all' : ''} winding filaments of both wings at the target`, n: 'Exact for a finite straight wire. The coil is thousands of such segments, so there is no far-field or loop approximation.' },
     { g: 'field', t: 'Flux at the target', e: 'B_T=k_B\\,I,\\qquad k_B=\\left|\\sum_{\\mathrm{seg}}\\vec b_{seg}(0,0,z_T)\\right|', v: `z_T = ${fx(r.zT * 100, 1)} cm, k_B = ${fx(r.kB * 1e3, 3)} mT/A, I = ${fx(res.I, 1)} A → B = ${fx(res.Bpk * 1e3, 2)} mT`, n: 'Linear in current, so the optimizer only needs k_B from geometry and I from the heat and voltage limits.' },
+    { g: 'field', t: 'Amps against turns', e: 'I=\\frac{B_T}{k_B},\\quad k_B\\approx N\\,k_1,\\quad P_{coil}\\propto\\frac{(N I)^{2}}{m_{Cu}}', v: `${fx(g.N, 1)} turns × ${fx(res.I, 1)} A = ${fx(g.N * res.I, 0)} ampere-turns per wing for ${fx(res.Bpk * 1e3, 2)} mT; heat ${fx(res.Pcoil, 1)} W from ${fx(g.mcu, 2)} kg of copper`, n: 'Flux needs ampere-turns, and heat is set by ampere-turns and copper mass, not by amps alone. Fewer amps means more turns, which raises inductance and the voltage you need. That is the amps, volts and heat tradeoff.' },
     { g: 'field', t: 'Recovery current', e: 'I_r=\\frac{B_r}{k_B}', v: `${fx(P.recov.Bpk * 1e3, 2)} mT / ${fx(r.kB * 1e3, 3)} mT/A = ${fx(r.Ir, 2)} A`, n: 'Recovery flux is a setting, not a variable, so its current follows from the geometry.' },
     { g: 'efield', t: 'Faraday’s law', e: '\\vec E=-\\frac{\\partial \\vec A}{\\partial t}-\\nabla\\varphi\\ \\approx\\ -\\frac{\\partial \\vec A}{\\partial t}', v: 'Half-space tissue, tangential component, no charge build-up term', n: 'A conservative simplification: surface charge on real tissue boundaries redistributes the field, so verify with FEM before relying on it.' },
     { g: 'efield', t: 'Vector potential of a segment', e: '\\vec A=\\frac{\\mu_0 I}{4\\pi}\\,\\hat t\\left[\\mathrm{asinh}\\frac{s_2}{d_\\perp}-\\mathrm{asinh}\\frac{s_1}{d_\\perp}\\right]', v: `Peak over the skin surface: a_E = ${eng(r.aE, 'Wb/m/A', 3)}`, n: 'Closed form, summed over all segments. The maximum is searched on a grid across the skin under the coil.' },
@@ -118,7 +120,7 @@ function eqList() {
     { g: 'therm', t: 'Lumped thermal node', e: 'C\\,\\frac{dT}{dt}=P_0\\left[1+\\alpha(T-20)\\right]-G\\,(T-T_{ref})', v: `C = ${fx(T.C, 0)} J/K, G = ${fx(T.G, 2)} W/K, T_ref = ${fx(T.Tref, 1)} °C, P0 = ${fx(T.P0, 1)} W`, n: 'Copper heats itself, loses heat to the air below and through the cover to the body above. Resistance rises with temperature, so heating feeds on itself.' },
     { g: 'therm', t: 'Closed-form temperature', e: 'T(t)=T_{ref}+f_0\\,t\\,\\frac{1-e^{-\\lambda t}}{\\lambda t},\\qquad \\lambda=\\frac{G-\\alpha P_0}{C}', v: T.runaway ? 'λ ≤ 0: thermal runaway, heat generated grows faster than it can leave' : `λ = ${sig(T.lam, 3)} /s, τ = ${fx(T.tau / 60, 1)} min, steady state ${fx(T.Tss, 1)} °C, after ${fx(M.tsess / 60, 0)} min ${fx(T.Tend, 1)} °C`, n: 'Exact solution of the linearized node, so the session limit is checked without time stepping.' },
     { g: 'therm', t: 'Conductances and skin temperature', e: 'G=A_{th}\\left(h_{dn}+U_{up}\\right),\\quad U_{up}=\\left(\\frac{h_0}{k_c}+\\frac{1}{h_t}\\right)^{-1},\\quad T_s=T_{core}+\\frac{U_{up}}{h_t}(T-T_{core})', v: `U_up = ${fx(T.Uup, 2)} W/m²K, A_th = ${fx(T.Ath * 1e4, 0)} cm², skin = ${fx(T.Ts, 1)} °C (limit ${fx(P.thermal.Tskin, 1)})`, n: 'The cover is the thermal path to the patient: thicker or more insulating cover keeps skin cooler but also traps heat in the coil.' },
-    { g: 'opt', t: 'The constrained problem', e: '\\min_{x}\\ f(x)\\quad\\mathrm{s.t.}\\quad g_i(x)\\le 0,\\ \\ i=1\\ldots 22', v: `f = ${P.objective === 'minP' ? 'P_coil / 10 W' : '−B_T / 1 mT'} = ${fx(r.f, 4)};  x = [w, ℓ, N, AWG, θ, b, I]`, n: 'Every limit is written as a normalized g ≤ 0 so 1 means “100% over”.' },
+    { g: 'opt', t: 'The constrained problem', e: '\\min_{x}\\ f(x)\\quad\\mathrm{s.t.}\\quad g_i(x)\\le 0,\\ \\ i=1\\ldots 22', v: `f = ${obj().f} = ${fx(r.f, 4)};  x = [w, ℓ, N, AWG, θ, b, I]`, n: 'Every limit is written as a normalized g ≤ 0 so 1 means “100% over”.' },
     { g: 'opt', t: 'Lagrangian and KKT conditions', e: '\\mathcal{L}=f+\\sum_i\\lambda_i g_i,\\quad \\nabla f+\\sum_i\\lambda_i\\nabla g_i=0,\\quad \\lambda_i\\ge 0,\\quad \\lambda_i g_i=0', v: S.sol ? `stationarity ${S.sol.kkt.stat.toExponential(1)}, violation ${S.sol.kkt.viol.toExponential(1)}, complementarity ${S.sol.kkt.comp.toExponential(1)}` : 'not solved yet', n: 'At the optimum the objective’s pull is exactly cancelled by the active limits. A multiplier of zero means the limit is slack.' },
     { g: 'opt', t: 'Augmented Lagrangian solver', e: '\\mathcal{L}_A=f+\\sum_i\\frac{1}{2\\rho}\\left[\\max(0,\\lambda_i+\\rho g_i)^{2}-\\lambda_i^{2}\\right],\\quad \\lambda_i\\leftarrow\\max(0,\\lambda_i+\\rho g_i)', v: S.sol ? `${(S.sol.trace || []).length} outer iterations, ${S.sol.evals} model evaluations` : '', n: 'Each outer step minimizes ℒ_A with projected BFGS on a normalized [0,1] box (log scale for N and I), then updates the multipliers.' },
     { g: 'opt', t: 'Shadow price of a limit', e: '\\frac{\\partial B^{*}}{\\partial\\,\\mathrm{limit}_i}=\\frac{\\lambda_i}{s_i}\\ \\mathrm{mT}', v: top.length ? top.map(o => `${CN[CI[o.c.id]].label}: λ = ${o.l.toFixed(3)}`).join(' · ') : 'No active limits', n: 'How much the best achievable flux changes if you relax that limit by one unit. This is the quantity the trade-off tab verifies by re-solving.' }
@@ -131,7 +133,7 @@ TABS.eq = {
   },
   update() {
     const list = eqList(), bind = new Set();
-    const lam = S.sol ? S.sol.lam : []; CN.forEach((c, i) => { if ((lam[i] || 0) > 1e-3 && !(c.id === 'Breq' && S.P.objective !== 'minP')) bind.add(CGRP(c)); });
+    const lam = S.sol ? S.sol.lam : []; CN.forEach((c, i) => { if ((lam[i] || 0) > 1e-3 && !(c.id === 'Breq' && !needsB())) bind.add(CGRP(c)); });
     $('#eqChips').innerHTML = [['all', 'All']].concat(EQG).map(([k, n]) => `<button type="button" data-g="${k}" aria-pressed="${this.f === k}">${esc(n)}${bind.has(k) ? '<i class="bd" title="Contains a binding limit"></i>' : ''}</button>`).join('');
     const fl = list.filter(q => this.f === 'all' || q.g === this.f);
     $('#eqList').innerHTML = EQG.filter(([k]) => fl.some(q => q.g === k)).map(([k, n]) => `<section class="card eqg"><h3>${esc(n)}${bind.has(k) ? '<span class="tag">binding limit here</span>' : ''}</h3>${fl.filter(q => q.g === k).map(q => `<div class="eq"><div class="eqt">${esc(q.t)}</div><div class="eqf">${tex(q.e)}</div><div class="eqv"><span>Now</span> ${esc(q.v)}</div><p class="note">${esc(q.n)}</p></div>`).join('')}</section>`).join('');
@@ -163,8 +165,7 @@ TABS.build = {
       card('Snap to buildable values', '<div class="btnrow"><button type="button" class="btn" id="snapBtn">Compare whole-number options</button></div><div id="snapOut"></div>', '', 'Tries every combination of the neighbouring wire gauges and whole turn counts, and re-optimizes the bend, size, band and current around each.') +
       card('Continuum model against real turns', '<div id="discBox"></div>', '', 'The optimizer treats the winding as a smooth band of current. This compares that against the same coil with every turn placed individually.') +
       card('Drive electronics', '<div id="drvBox"></div>') +
-      card('Before you energize it', '<ul class="check" id="chk"></ul>') +
-      card('Settings for the ESP32-S3', '<pre class="code" id="espOut" tabindex="0"></pre><div class="btnrow"><button type="button" class="btn" id="cpEsp">Copy constants</button><button type="button" class="btn ghost" id="cpJson">Copy design as JSON</button></div>', '', 'Constants only. The firmware must still measure coil temperature and current and cut the drive if either goes out of range.');
+      card('Settings for the ESP32-S3', '<pre class="code" id="espOut" tabindex="0"></pre><div class="btnrow"><button type="button" class="btn" id="cpEsp">Copy constants</button><button type="button" class="btn ghost" id="cpJson">Copy design as JSON</button></div>', '', 'Constants for your firmware.');
     $('#snapBtn').addEventListener('click', runSnap);
     $('#snapOut').addEventListener('click', e => { const b = e.target.closest('[data-adopt]'); if (!b) return; const row = S.snap.rows[+b.dataset.adopt]; S.lock[2] = row.c.N; S.lock[3] = row.c.awg; S.snap = null; solveNow(); saveSoon(); $('#tabs [data-tab=opt]').focus(); });
     $('#cpEsp').addEventListener('click', e => copyText(this.esp, e.target));
@@ -178,6 +179,7 @@ TABS.build = {
       ['Turns', `${fx(g.N, 1)} per wing  (${dc.N} when rounded: ${rg.npl} per layer × ${rg.Ld} layer${rg.Ld > 1 ? 's' : ''})`],
       ['Wing', `${fx(g.wx * 1e3, 0)} mm wide × ${fx(g.ly * 1e3, 0)} mm long, winding band ${fx(g.b * 1e3, 0)} mm, thickness ${fx(g.t * 1e3, 1)} mm`],
       ['Bend', `${fx(g.th * 180 / Math.PI, 1)}° per wing, ${fx(P.gap * 1e3, 0)} mm hinge gap, profile ${fx(r.prof * 1e3, 1)} mm`],
+      ['Current', `${fx(A.I, 1)} A peak acute (rms ${fx(A.Irms, 1)} A, budget ${fx(P.drive.Isw, 1)} A), ${fx(R.I, 1)} A peak recovery, ${fx(A.Ibus, 1)} A average from the source`],
       ['Copper', `${fx(g.lw, 1)} m total, ${fx(g.mcu, 2)} kg, about $${fx(g.mcu * P.price, 0)}`],
       ['Electrical', `${fx(g.R20 * 1e3, 0)} mΩ cold, ${fx(A.Rhot * 1e3, 0)} mΩ hot, ${fx(r.ind.L * 1e6, 0)} µH, current density ${fx(A.Irms / (g.Acu * 1e6), 1)} A/mm² rms`],
       ['Footprint', `${fx((2 * g.wx + P.gap) * 1e3, 0)} × ${fx(g.ly * 1e3, 0)} mm`]
@@ -199,14 +201,7 @@ TABS.build = {
       ['FET conduction loss', `${fx(Pfet, 1)} W total in the bridge at the acute setting, plus ${fx(A.Psw, 2)} W switching`],
       ['Bus current', `${fx(A.Ibus, 1)} A average from the source; fuse at ${fx(1.25 * A.Ibus + 2, 0)} A`]
     ].map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`;
-    $('#chk').innerHTML = [
-      `Thermistor on the coil and another under the cover. The firmware stops the drive above ${fx(P.thermal.Tmax - 5, 0)} °C coil or ${fx(P.thermal.Tskin - 0.5, 1)} °C skin.`,
-      `Hardware current limit near ${fx(1.25 * Ia, 0)} A that does not depend on the firmware running.`,
-      'Power the electronics from a certified isolated supply or a battery, never from an unisolated one while you lie on the coil.',
-      `Check the induced field against your own limit (${fx(P.Elim, 2)} V/m is set here). Reference values vary by standard and population; this model is a conservative estimate, not a measurement.`,
-      'Measure the real flux with a Hall probe and compare with this model before treating any number as a dose.',
-      'This tool designs hardware. It does not say what flux or frequency helps a spinal condition; talk to a clinician about that.'
-    ].map(t => `<li>${esc(t)}</li>`).join('');
+
     const nm = x => String(x).replace(/\./g, '_');
     this.esp = `// generated by the butterfly PEMF optimizer\nconst float V_BUS_V        = ${fx(P.supply.Voc, 1)}f;\nconst float F_ACUTE_HZ     = ${P.acute.f}.0f;\nconst float I_ACUTE_PK_A   = ${fx(A.I, 2)}f;\nconst uint32_t T_ACUTE_S   = ${Math.round(P.acute.tsess)};\nconst float DUTY_ACUTE     = ${fx(P.acute.duty, 2)}f;\nconst float F_RECOV_HZ     = ${P.recov.f}.0f;\nconst float I_RECOV_PK_A   = ${fx(R.I, 2)}f;\nconst uint32_t T_RECOV_S   = ${Math.round(P.recov.tsess)};\nconst float DUTY_RECOV     = ${fx(P.recov.duty, 2)}f;\nconst float I_HW_LIMIT_A   = ${fx(1.25 * Math.max(A.I, R.I), 1)}f;\nconst float T_COIL_CUT_C   = ${fx(P.thermal.Tmax - 5, 0)}f;\nconst float T_SKIN_CUT_C   = ${fx(P.thermal.Tskin - 0.5, 1)}f;\nconst float PWM_HZ         = ${P.drive.fpwm}.0f;\nconst float SHUNT_OHM      = ${fx(P.drive.Rsh, 4)}f;\nconst float MAX_DUTY       = ${fx(P.drive.Dmax, 2)}f;`;
     $('#espOut').textContent = this.esp;
@@ -215,9 +210,9 @@ TABS.build = {
   paintSnap() {
     const el = $('#snapOut'); if (!el) return; const s = S.snap;
     if (!s) { el.innerHTML = ''; return; }
-    const ok = s.rows.filter(Boolean).filter(o => o.res.kkt.viol < 5e-3), minP = S.P.objective === 'minP';
+    const ok = s.rows.filter(Boolean).filter(o => o.res.kkt.viol < 5e-3), minP = obj().min;
     const best = ok.length ? ok.reduce((a, o) => (minP ? metric(o.res) < metric(a.res) : metric(o.res) > metric(a.res)) ? o : a, ok[0]) : null;
-    const [mn, mu] = metricName(), cont = minP ? S.sol.Pcoil : S.sol.Bpk * 1e3;
+    const [mn, mu] = metricName(), cont = obj().fromSol(S.sol);
     el.innerHTML = `<div class="tablewrap"><table><thead><tr><th class="l">Option</th><th>${esc(mn)}, ${esc(mu)}</th><th>Change</th><th>Wing mm</th><th>Bend</th><th>Amps</th><th></th></tr></thead><tbody>
       <tr class="ref"><td class="l">Continuous optimum</td><td>${fx(cont, 2)}</td><td>–</td><td>${fx(S.x[0] * 1e3, 0)} × ${fx(S.x[1] * 1e3, 0)}</td><td>${fx(S.x[4] * 180 / Math.PI, 1)}°</td><td>${fx(S.x[6], 1)}</td><td></td></tr>
       ${s.combos.map((c, k) => { const o = s.rows[k]; if (!o) return `<tr><td class="l">AWG ${c.awg}, ${c.N} turns</td><td colspan="6" class="mut">solving…</td></tr>`; const x = o.res.x, v = metric(o.res), feas = o.res.kkt.viol < 5e-3;
@@ -227,7 +222,7 @@ TABS.build = {
 
 /* ---------------- tab registry, render, init ---------------- */
 const TAB_LIST = [['field', 'Field'], ['opt', 'Optimum'], ['lag', 'Lagrangian'], ['trade', 'Trade-offs'], ['eq', 'Equations'], ['build', 'Build sheet']];
-S.sweep.axis = 'Pcap';
+S.sweep.axis = 'Imax';
 function showTab(id) {
   S.tab = id; const t = TABS[id], host = $('#panel_' + id);
   if (!t.built) { t.build(host); t.built = true; }
