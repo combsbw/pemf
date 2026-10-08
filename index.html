@@ -1,0 +1,1838 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Butterfly PEMF Optimizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:ital@0;1&display=swap">
+<style>
+:root{
+  --bg:#f6f5f2;--surface:#fcfcfb;--sunk:#f0efec;--ink:#0b0b0b;--ink2:#52514e;--muted:#767470;--grid:#e1e0d9;--axis:#c3c2b7;--hair:rgba(11,11,11,.10);--hair2:rgba(11,11,11,.18);
+  --c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;--c4:#eda100;--c5:#e87ba4;--c6:#008300;--c7:#4a3aa7;--c8:#e34948;
+  --accent:#2a78d6;--accent-ink:#ffffff;--accent-soft:#e3eefb;
+  --ok:#006300;--warn:#8a5a00;--warn-bg:#fdf1d6;--bad:#b42626;--bad-bg:#fbe4e2;--ok-bg:#e2f3e2;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;--serif:"STIX Two Text","Cambria Math",Cambria,"Times New Roman",serif;
+  --r:10px;--gut:16px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d0d0d;--surface:#1a1a19;--sunk:#222221;--ink:#ffffff;--ink2:#c3c2b7;--muted:#99978f;--grid:#2c2c2a;--axis:#383835;--hair:rgba(255,255,255,.10);--hair2:rgba(255,255,255,.2);
+  --c1:#3987e5;--c2:#d95926;--c3:#199e70;--c4:#c98500;--c5:#d55181;--c6:#008300;--c7:#9085e9;--c8:#e66767;
+  --accent:#3987e5;--accent-ink:#0b0b0b;--accent-soft:#16283f;
+  --ok:#3ec23e;--warn:#fab219;--warn-bg:#3a2d0a;--bad:#ff8a84;--bad-bg:#3b1616;--ok-bg:#12301a;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d0d0d;--surface:#1a1a19;--sunk:#222221;--ink:#ffffff;--ink2:#c3c2b7;--muted:#99978f;--grid:#2c2c2a;--axis:#383835;--hair:rgba(255,255,255,.10);--hair2:rgba(255,255,255,.2);
+  --c1:#3987e5;--c2:#d95926;--c3:#199e70;--c4:#c98500;--c5:#d55181;--c6:#008300;--c7:#9085e9;--c8:#e66767;
+  --accent:#3987e5;--accent-ink:#0b0b0b;--accent-soft:#16283f;
+  --ok:#3ec23e;--warn:#fab219;--warn-bg:#3a2d0a;--bad:#ff8a84;--bad-bg:#3b1616;--ok-bg:#12301a;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+b{font-weight:600}
+.mut{color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* shell */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px var(--gut) 10px;max-width:1500px;margin:0 auto}
+.top h1{font-size:18px;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.top p{font-size:12.5px;color:var(--ink2);margin-top:2px;max-width:60ch}
+.shell{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:0 var(--gut) 88px;max-width:1500px;margin:0 auto}
+.main{min-width:0}
+@media (min-width:1040px){
+  .shell{grid-template-columns:340px minmax(0,1fr);padding-bottom:40px;align-items:start}
+  .problem{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+  .pswitch{display:none!important}
+}
+@media (max-width:1039px){
+  body[data-panel="views"] .problem{display:none}
+  body[data-panel="problem"] .main{display:none}
+}
+.pswitch{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;gap:8px;padding:8px var(--gut) calc(8px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--hair2)}
+.pswitch button{flex:1;min-height:44px;border-radius:var(--r);border:1px solid var(--hair2);background:var(--sunk);font-weight:500}
+.pswitch button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+/* chips & status */
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:500;white-space:nowrap;background:var(--sunk);border:1px solid var(--hair)}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}.chip.bad{background:var(--bad-bg);color:var(--bad)}
+.chip.busy{color:var(--ink2)}
+.chip.ok::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.spin{width:11px;height:11px;border-radius:50%;border:2px solid var(--axis);border-top-color:var(--accent);display:inline-block;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+
+/* readout */
+.readout{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);padding:8px 0 10px;margin:0 calc(var(--gut) * -1);padding-inline:var(--gut);border-bottom:1px solid var(--hair)}
+@media (min-width:1040px){.readout{margin:0;padding-inline:0;top:0}}
+.rohead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:8px}
+#limitedby{font-size:12.5px;color:var(--ink2);min-width:0;flex:1 1 220px}
+.kpis{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:2px}
+.kpi{flex:0 0 auto;min-width:118px;background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);padding:7px 10px;scroll-snap-align:start}
+.kpi.big{background:var(--accent-soft);border-color:transparent;min-width:150px}
+.kk{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.kv{font:600 22px/1.15 var(--mono);letter-spacing:-.02em}
+.kv span{font-size:12px;font-weight:400;color:var(--ink2);margin-left:3px}
+.ks{font-size:11.5px;color:var(--ink2);white-space:nowrap}
+.kpi.bind{border-color:var(--warn)}.kpi.over{border-color:var(--bad);background:var(--bad-bg)}
+.tag{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;padding:0 6px;border-radius:4px;background:var(--warn-bg);color:var(--warn);margin-right:4px;vertical-align:1px}
+.kpi.over .tag,.lrow.over .tag{background:var(--bad);color:var(--surface)}
+@media (min-width:1040px){.kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));overflow:visible}.kpi,.kpi.big{min-width:0}.ks{white-space:normal}.kv{font-size:20px}}
+
+/* controls: segmented, chips, buttons */
+.seg{display:inline-flex;background:var(--sunk);border:1px solid var(--hair);border-radius:9px;padding:2px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;padding:6px 12px;border-radius:7px;min-height:32px;color:var(--ink2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--hair2)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1px solid var(--hair2);background:var(--surface);padding:5px 11px;border-radius:99px;min-height:32px;cursor:pointer;color:var(--ink2);display:inline-flex;align-items:center;gap:6px}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:500}
+.chips .bd{width:8px;height:8px;border-radius:50%;background:var(--c2);display:inline-block}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:7px 14px;border-radius:8px;min-height:36px;font-weight:500;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.sm{padding:2px 10px;min-height:28px;font-size:12.5px}
+.btn:hover{filter:brightness(1.07)}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.toolrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-bottom:10px}
+.sel{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted)}
+select,input[type=number]{background:var(--surface);border:1px solid var(--hair2);border-radius:8px;padding:6px 8px;min-height:34px;color:var(--ink);max-width:100%}
+input[type=number]{width:74px;font-family:var(--mono);font-size:13px;text-align:right}
+.chk{display:inline-flex;align-items:center;gap:6px;cursor:pointer}.chk.sm{font-size:12.5px;color:var(--ink2);margin-top:8px}
+
+/* range */
+input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;width:100%;height:28px;margin:0;cursor:pointer;touch-action:pan-y}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--axis)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--axis)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--accent);margin-top:-7px}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid var(--surface)}
+input[type=range]:disabled{opacity:.4}
+
+/* problem panel */
+.problem{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:6px 14px 14px;min-width:0}
+.ph{font-size:15px;font-weight:600;padding:10px 0 4px}
+details.sec{border-top:1px solid var(--hair)}
+details.sec:first-of-type{border-top:0}
+details.sec summary{cursor:pointer;padding:11px 0;font-weight:600;font-size:13px;letter-spacing:.02em;list-style:none;display:flex;align-items:center;justify-content:space-between;min-height:44px}
+details.sec summary::-webkit-details-marker{display:none}
+details.sec summary::after{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .15s}
+details.sec[open] summary::after{transform:rotate(-135deg)}
+.secbody{display:flex;flex-direction:column;gap:10px;padding-bottom:12px}
+.ctl{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cl{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2)}
+.cl .u{margin-left:auto;font:12px var(--mono);color:var(--muted)}
+.ci{display:grid;grid-template-columns:minmax(0,1fr) 76px;gap:10px;align-items:center}
+.hint{position:relative;display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--axis);color:var(--muted);font:600 10px var(--mono);cursor:help;flex:none}
+.hint:hover::after,.hint:focus::after{content:attr(data-tip);position:absolute;left:0;top:20px;z-index:30;width:min(260px,70vw);background:var(--ink);color:var(--surface);padding:8px 10px;border-radius:8px;font:400 12px/1.4 var(--sans);text-transform:none;letter-spacing:0;box-shadow:0 4px 18px rgba(0,0,0,.25)}
+.ph-foot{padding-top:6px}
+
+/* tabs */
+.tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--hair2);margin:12px 0}
+.tabs button{border:0;background:transparent;padding:10px 14px;min-height:44px;white-space:nowrap;color:var(--ink2);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink);font-weight:600;border-bottom-color:var(--accent)}
+#panels>section{display:flex;flex-direction:column;gap:12px;min-width:0}
+#panels>section[hidden]{display:none}
+
+/* cards */
+.card{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:14px;min-width:0}
+.card h3{font-size:14px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.note{font-size:12.5px;color:var(--ink2);margin:4px 0 8px;max-width:75ch;text-wrap:pretty}
+.card .note:last-child{margin-bottom:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:12px}
+.grid2>*{min-width:0}
+
+/* field map */
+.mapwrap{position:relative;display:flex;justify-content:center;touch-action:pan-y}
+.mapwrap canvas{display:block;max-width:100%;border-radius:6px;cursor:crosshair}
+.maptip,.tip{position:absolute;z-index:5;pointer-events:none;background:var(--ink);color:var(--surface);padding:5px 9px;border-radius:7px;font-size:12px;line-height:1.35;white-space:nowrap}
+.maptip b,.tip b{font-family:var(--mono);font-weight:600}
+.maptip span{display:block;opacity:.8}
+.cb{margin-top:10px;max-width:560px;margin-inline:auto}
+.cbbar{height:10px;border-radius:5px;position:relative}
+.cbm{position:absolute;top:-4px;width:2px;height:18px;background:var(--ink);box-shadow:0 0 0 1px var(--surface)}
+.cbtk{position:relative;height:16px;font:11px var(--mono);color:var(--muted)}
+.cbtk span{position:absolute;transform:translateX(-50%);top:3px}
+.cbu{font-size:11.5px;color:var(--ink2);text-align:center}
+
+/* charts */
+.chart{min-width:0}
+.chart .legend,.slleg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink2);margin-bottom:4px}
+.slleg{margin:8px 0 0}
+.lg{display:inline-flex;align-items:center;gap:6px}
+.lg i{display:inline-block;width:16px;height:3px;border-radius:2px}
+.lg i.sq{width:26px;height:10px;border-radius:2px}
+.lg i.hatch{width:12px;height:12px;border-radius:2px;background:repeating-linear-gradient(135deg,var(--ink) 0 1px,transparent 1px 4px);opacity:.5;border:1px solid var(--axis)}
+.lg i.dot{width:8px;height:8px;border-radius:50%;background:var(--ink)}
+.plot{position:relative}
+.plot svg{display:block;max-width:100%;height:auto;touch-action:pan-y}
+.chart .grid{stroke:var(--grid);stroke-width:1}.chart .axis{stroke:var(--axis)}.chart .axtick{stroke:var(--axis)}
+.chart .tick{fill:var(--muted);font:11px var(--mono)}.chart .axl{fill:var(--ink2);font:11.5px var(--sans)}
+.chart .ref{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 4}.chart .reflab{fill:var(--ink2);font:11px var(--sans)}
+.chart .xh{stroke:var(--ink);stroke-width:1;opacity:.5}
+.chart .tip{top:4px;display:flex;flex-direction:column;gap:2px}
+.chart .tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.chart .empty{padding:30px;text-align:center;color:var(--muted)}
+
+/* optimum tab */
+#vars{display:flex;flex-direction:column;gap:6px}
+.vrow{display:grid;grid-template-columns:minmax(0,1fr) auto 40px;grid-template-areas:"n v l" "s s s";gap:0 10px;align-items:center;padding:8px 0;border-top:1px solid var(--hair)}
+.vrow:first-child{border-top:0}
+.vname{grid-area:n;min-width:0;display:flex;flex-direction:column}
+.vname label{font-weight:500}
+.vname small{font-size:11.5px;color:var(--muted)}
+.vname small.held{color:var(--accent);font-weight:600}.vname small.atb{color:var(--warn);font-weight:500}
+.vval{grid-area:v;font-family:var(--mono);text-align:right;white-space:nowrap}.vval b{font-size:16px}.vval span{color:var(--muted);font-size:12px}
+.vsl{grid-area:s}
+.vend{display:flex;justify-content:space-between;font:10.5px var(--mono);color:var(--muted);margin-top:-4px}
+.lockb{grid-area:l;width:40px;height:40px;border-radius:8px;border:1px solid var(--hair2);background:var(--surface);color:var(--muted);display:grid;place-items:center;cursor:pointer}
+.lockb[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.lrow{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);grid-template-areas:"n v" "b b" "l l";gap:2px 12px;padding:10px 0;border-top:1px solid var(--hair)}
+.lrow:first-child{border-top:0}
+.ln{grid-area:n;font-weight:500;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.ln em{font-style:normal}
+.lv{grid-area:v;font:12.5px var(--mono);color:var(--ink2);text-align:right}
+.lb{grid-area:b}
+.bar{position:relative;height:8px;border-radius:4px;background:var(--sunk);overflow:visible}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--accent);opacity:.55}
+.lrow.act .bar i{background:var(--c2);opacity:1}
+.lrow.over .bar i{background:var(--bad);opacity:1}
+.bar u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);text-decoration:none}
+.ll{grid-area:l;font-size:12.5px;display:flex;flex-wrap:wrap;gap:2px 12px;color:var(--ink2)}
+.lam{font-family:var(--mono);font-weight:600;color:var(--ink)}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 16px}
+.kgrid div{display:flex;flex-direction:column;border-left:2px solid var(--hair2);padding-left:10px;min-width:0}
+.kgrid span{font-size:11.5px;color:var(--muted)}.kgrid b{font:600 16px var(--mono)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+.eqline{font-family:var(--serif);font-size:19px;padding:6px 0;overflow-x:auto}
+#slwrap{width:100%;max-width:560px;margin-inline:auto}
+
+/* tables */
+.tablewrap{overflow-x:auto;margin-top:10px}
+table{border-collapse:collapse;width:100%;font:12.5px var(--mono);font-variant-numeric:tabular-nums}
+th,td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--hair);white-space:nowrap}
+th{font:600 11.5px var(--sans);color:var(--muted)}
+th.l,td.l{text-align:left;font-family:var(--sans)}
+tr.best td{background:var(--ok-bg)}tr.ref td{color:var(--ink2)}
+
+/* supplies */
+.sbar{display:grid;grid-template-columns:130px minmax(0,1fr) auto;grid-template-areas:"n b v" ". s s";gap:2px 12px;align-items:center;padding:6px 0}
+.sn{grid-area:n;font-weight:500}.sn em{font-style:normal;font-size:11px;color:var(--accent);margin-left:4px}
+.sbt{grid-area:b;height:12px;background:var(--sunk);border-radius:6px;overflow:hidden}
+.sbt i{display:block;height:100%;background:var(--c1);border-radius:0 6px 6px 0;transition:width .3s}
+.sbt i.bad{background:var(--c8)}
+.sbar.cur .sbt i{background:var(--accent)}
+.sv{grid-area:v;font:600 13px var(--mono)}.ss2{grid-area:s;font-size:12px;color:var(--ink2)}
+@media (max-width:520px){.sbar{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n v" "b b" "s s"}}
+
+/* equations */
+.eq{padding:12px 0;border-top:1px solid var(--hair)}
+.eq:first-of-type{border-top:0}
+.eqt{font-weight:600;font-size:13px}
+.eqf{font-family:var(--serif);font-size:18px;line-height:2;padding:4px 0;overflow-x:auto;overflow-y:hidden;white-space:nowrap}
+.eqf i,.eqline i{font-style:italic}
+.eqf .up{font-style:normal}
+.eqv{font:12.5px var(--mono);color:var(--ink);background:var(--sunk);border-radius:6px;padding:6px 10px;overflow-wrap:anywhere}
+.eqv span{font:600 10.5px var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-right:8px}
+.fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 .15em;line-height:1.25}
+.fr .nu{border-bottom:1px solid currentColor;padding:0 .2em}.fr .de{padding:0 .2em}
+.sq{display:inline-flex;align-items:stretch}
+span.sq .rd{font-size:1.15em}.sq .rb{border-top:1px solid currentColor;padding:0 .1em}
+.up{font-style:normal}
+.hat{position:relative;display:inline-block}.hat::before{content:"^";position:absolute;left:0;right:0;top:-.55em;text-align:center;font-size:.8em}
+.vec{font-weight:700;font-style:normal}
+.qd{display:inline-block;width:1.2em}.th{display:inline-block;width:.17em}.sp{display:inline-block;width:.28em}
+.big{font-size:1.5em;vertical-align:-.1em;line-height:1}
+.ss{display:inline-flex;flex-direction:column;vertical-align:middle;line-height:1;font-size:.7em}
+.ss sup,.ss sub{font-size:1em;vertical-align:baseline;line-height:1.1}
+sup,sub{font-size:.7em;line-height:0}
+.eqg h3 .tag{margin:0}
+
+/* build */
+.dl{display:flex;flex-direction:column;margin:0}
+.dl>div{display:grid;grid-template-columns:minmax(90px,150px) minmax(0,1fr);gap:12px;padding:8px 0;border-top:1px solid var(--hair)}
+.dl>div:first-child{border-top:0}
+.dl dt{color:var(--muted);font-size:12.5px}.dl dd{margin:0;overflow-wrap:anywhere}
+pre.code{margin:0;background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto;font:12px/1.55 var(--mono);color:var(--ink)}
+ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+@media (max-width:520px){.dl>div{grid-template-columns:1fr;gap:0}.vrow{grid-template-columns:minmax(0,1fr) auto 40px}}
+@media (forced-colors:active){.bar i,.sbt i{forced-color-adjust:none}}
+
+</style>
+</head><body>
+<header class="top"><div><h1>Butterfly PEMF coil optimizer</h1><p>Heat against flux, solved with Lagrange multipliers. Change anything on the left; the optimum, every chart and every equation update together.</p></div><div id="status"></div></header>
+<div class="shell">
+<aside id="problem" class="problem" aria-label="Problem inputs"></aside>
+<main class="main">
+<div class="readout" id="readout"><div class="rohead"><div class="seg" id="modeSeg" role="group" aria-label="Mode shown"><button type="button" data-m="a" aria-pressed="true">Acute</button><button type="button" data-m="r" aria-pressed="false">Recovery</button></div><div id="limitedby" aria-live="polite"></div></div><div class="kpis" id="kpis"></div></div>
+<nav class="tabs" id="tabs" role="tablist" aria-label="Views"></nav>
+<div id="panels"></div>
+</main>
+</div>
+<nav class="pswitch" id="pswitch" aria-label="Switch panel"><button type="button" data-p="views" aria-pressed="true">Results</button><button type="button" data-p="problem" aria-pressed="false">Problem inputs</button></nav>
+<script id="core">
+/* PEMF butterfly-coil physics + augmented-Lagrangian optimizer.
+   Pure JS, no dependencies. Works in Node (tests) and in the browser (inlined into the page).
+   SI units everywhere internally (m, A, T, s, K or degC as noted). */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.PEMF = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  const PI = Math.PI;
+  const MU0 = 4e-7 * PI;
+  const K = { rho20: 1.724e-8, alpha: 0.0039, dens: 8960, cp: 385, gmdRound: 0.7788, gmdRect: 0.2235 };
+
+  /* ---------------------------------------------------------------- wire */
+  function awgDia(awg) { return 1e-3 * 0.127 * Math.pow(92, (36 - awg) / 39); }
+  function enamel(d) { return 0.012e-3 + 0.015 * d; }            // per-side enamel build
+  function smax(a, b, eps) { return 0.5 * (a + b + Math.sqrt((a - b) * (a - b) + eps * eps)); }
+  function skinFactor(d, f) {                                     // R_ac/R_dc, small-argument series
+    const delta = Math.sqrt(K.rho20 / (PI * Math.max(f, 1e-3) * MU0));
+    const x = d / 2 / delta; return 1 + Math.pow(x, 4) / 48;
+  }
+
+  /* ---------------------------------------------------------------- defaults */
+  function defaults() {
+    return {
+      nRings: 5, nLay: 0,
+      gap: 0.008, phi: 0.85, rin: 0.012,
+      depth: 0.06, standoff: 0.010,
+      objective: 'maxB', BaReq: 2e-3,
+      acute: { f: 100, wave: 'sine', duty: 1.0, tsess: 600 },
+      recov: { f: 20, wave: 'sine', duty: 1.0, tsess: 3600, Bpk: 0.5e-3 },
+      supply: { name: '24 V battery', kind: 'battery', Voc: 24, Rsrc: 0.08, Pmax: 720, capWh: 120 },
+      drive: { Rds: 0.005, Rsh: 0.005, Rwire: 0.02, Dmax: 0.95, fpwm: 20000, tsw: 1.2e-7, Isw: 60 },
+      thermal: { Ta: 22, Tcore: 37, hdn: 6, kc: 0.05, ht: 40, spread: 1.5, Cx: 2000, Tmax: 60, Tskin: 41 },
+      Elim: 0.8,
+      size: { Wmax: 0.40, Lmax: 0.30, Hmax: 0.030, mmax: 2.0, Pcap: Infinity },
+      price: 13
+    };
+  }
+  const SUPPLIES = {
+    wall12: { name: '12 V wall supply', kind: 'wall', Voc: 12, Rsrc: 0.02, Pmax: 120, capWh: Infinity },
+    wall24: { name: '24 V wall supply', kind: 'wall', Voc: 24, Rsrc: 0.02, Pmax: 240, capWh: Infinity },
+    bat24: { name: '24 V battery', kind: 'battery', Voc: 24, Rsrc: 0.08, Pmax: 720, capWh: 120 },
+    bat48: { name: '48 V battery', kind: 'battery', Voc: 48, Rsrc: 0.15, Pmax: 1440, capWh: 240 }
+  };
+
+  /* ---------------------------------------------------------------- waveforms
+     i(t) = I_pk g(tau); kRms = rms(g), slew = max|dg/dtau|, kAbs = mean|g|, vpk: peak of R i + L di/dt per amp */
+  const WAVES = {
+    sine: { name: 'Sine (bipolar)', krms: Math.SQRT1_2, slew: 2 * PI, kabs: 2 / PI, g: t => Math.sin(2 * PI * t), vpk: (R, L, f) => Math.sqrt(R * R + Math.pow(2 * PI * f * L, 2)) },
+    tri: { name: 'Triangle (bipolar)', krms: 1 / Math.sqrt(3), slew: 4, kabs: 0.5, g: t => { const u = t - Math.floor(t); return u < 0.25 ? 4 * u : u < 0.75 ? 2 - 4 * u : 4 * u - 4; }, vpk: (R, L, f) => R + 4 * f * L },
+    half: { name: 'Half-sine pulse (unipolar)', krms: 0.5, slew: 2 * PI, kabs: 1 / PI, g: t => Math.max(0, Math.sin(2 * PI * t)), vpk: (R, L, f) => Math.sqrt(R * R + Math.pow(2 * PI * f * L, 2)) }
+  };
+
+  /* ---------------------------------------------------------------- geometry */
+  function geometry(x, P) {
+    const d = awgDia(x.awg), dI = d + 2 * enamel(d), Acu = PI * d * d / 4;
+    const tRaw = x.N * dI * dI / (P.phi * x.b);
+    const t = smax(tRaw, dI, 0.05 * dI);
+    const lturn = 2 * (x.wx + x.ly) - 4 * x.b;
+    const lw = 2 * x.N * lturn;
+    const g = {
+      wx: x.wx, ly: x.ly, N: x.N, awg: x.awg, th: x.th, b: x.b,
+      d, dI, Acu, tRaw, t, lturn, lw,
+      R20: K.rho20 * lw / Acu,
+      mcu: K.dens * lw * Acu,
+      Aband: 2 * (x.wx * x.ly - (x.wx - 2 * x.b) * (x.ly - 2 * x.b)),
+      layers: t / dI
+    };
+    return g;
+  }
+  /* continuum winding: a Rb x Rz grid of filament rings; each carries N/(Rb*Rz) turns.
+     Rb adapts to N (=> exact turn-by-turn model at integer N <= Rbmax). */
+  function makeRings(geo, Rbmax, Rz) {
+    Rz = Rz || Math.min(2, Math.max(1, Math.round(geo.t / geo.dI)));
+    const Rb = Math.max(1, Math.min(Rbmax, Math.round(geo.N)));
+    const s = [], n = [], z = [];
+    for (let i = 0; i < Rb; i++) for (let j = 0; j < Rz; j++) {
+      s.push((i + 0.5) * geo.b / Rb); n.push(geo.N / (Rb * Rz)); z.push(((j + 0.5) / Rz - 0.5) * geo.t);
+    }
+    return { s, n, z, R: s.length, Rb, Rz, cb: geo.b / Rb, cz: geo.t / Rz };
+  }
+  /* exact turn-by-turn winding (one filament per turn, layered) for verification and the build sheet */
+  function discreteRings(geo) {
+    const N = Math.max(1, Math.round(geo.N)), Ld = Math.max(1, Math.round(geo.t / geo.dI)), npl = Math.ceil(N / Ld);
+    const s = [], n = [], z = [];
+    for (let i = 0; i < N; i++) { const l = Math.floor(i / npl), j = i % npl; s.push((j + 0.5) * geo.b / npl); z.push((l - (Ld - 1) / 2) * geo.t / Ld); n.push(1); }
+    return { s, n, z, R: N, Rb: N, Rz: 1, cb: geo.b / npl, cz: geo.t / Ld, Ld, npl };
+  }
+  /* one ring of one wing: 4 segments in global coords, CCW in (u,v); wing 2 is the mirror image (=> opposite sense) */
+  function ringSegs(geo, sigma, s, zo, gap) {
+    const ct = Math.cos(geo.th), st = Math.sin(geo.th), wx = geo.wx, ly = geo.ly;
+    const loc = [[s, -ly / 2 + s], [wx - s, -ly / 2 + s], [wx - s, ly / 2 - s], [s, ly / 2 - s]];
+    const nx = -sigma * st, nz = ct;
+    const pts = loc.map(p => [sigma * (gap / 2 + p[0] * ct) + zo * nx, p[1], p[0] * st + zo * nz]);
+    const out = [];
+    for (let i = 0; i < 4; i++) { const a = pts[i], b = pts[(i + 1) % 4]; out.push([a[0], a[1], a[2], b[0], b[1], b[2]]); }
+    return out;
+  }
+  function buildSegs(geo, rg, P) {
+    const cnt = rg.R * 8;
+    const S = new Float64Array(cnt * 7); let o = 0;
+    for (const sigma of [1, -1]) for (let k = 0; k < rg.R; k++) {
+      const sg = ringSegs(geo, sigma, rg.s[k], rg.z[k], P.gap);
+      for (const q of sg) { S[o] = q[0]; S[o + 1] = q[1]; S[o + 2] = q[2]; S[o + 3] = q[3]; S[o + 4] = q[4]; S[o + 5] = q[5]; S[o + 6] = rg.n[k]; o += 7; }
+    }
+    return S;
+  }
+
+  /* ---------------------------------------------------------------- field: closed-form straight segments
+     B = mu0/(4 pi d) (sin a2 - sin a1) (t x dhat) ;  A = mu0/(4 pi) t [asinh(s2/d) - asinh(s1/d)]   (per ampere) */
+  const _o = new Float64Array(6);
+  function fieldAt(S, px, py, pz, out) {
+    out = out || _o;
+    let Bx = 0, By = 0, Bz = 0, Ax = 0, Ay = 0, Az = 0;
+    for (let i = 0; i < S.length; i += 7) {
+      const x1 = S[i], y1 = S[i + 1], z1 = S[i + 2], wt = S[i + 6];
+      let tx = S[i + 3] - x1, ty = S[i + 4] - y1, tz = S[i + 5] - z1;
+      const len = Math.sqrt(tx * tx + ty * ty + tz * tz); tx /= len; ty /= len; tz /= len;
+      const rx = px - x1, ry = py - y1, rz = pz - z1;
+      const s = rx * tx + ry * ty + rz * tz;
+      const qx = rx - s * tx, qy = ry - s * ty, qz = rz - s * tz;
+      let d = Math.sqrt(qx * qx + qy * qy + qz * qz); if (d < 1e-9) d = 1e-9;
+      const s1 = -s, s2 = len - s;
+      const f = (s2 / Math.sqrt(s2 * s2 + d * d) - s1 / Math.sqrt(s1 * s1 + d * d)) / d * wt;
+      const inv = 1 / d;
+      Bx += f * (ty * qz - tz * qy) * inv; By += f * (tz * qx - tx * qz) * inv; Bz += f * (tx * qy - ty * qx) * inv;
+      const a = (Math.asinh(s2 / d) - Math.asinh(s1 / d)) * wt;
+      Ax += a * tx; Ay += a * ty; Az += a * tz;
+    }
+    const c = MU0 / (4 * PI);
+    out[0] = Bx * c; out[1] = By * c; out[2] = Bz * c; out[3] = Ax * c; out[4] = Ay * c; out[5] = Az * c;
+    return out;
+  }
+
+  /* vector potential only (cheaper): used for the induced-E survey */
+  function potentialAt(S, px, py, pz, out) {
+    let Ax = 0, Ay = 0, Az = 0;
+    for (let i = 0; i < S.length; i += 7) {
+      const x1 = S[i], y1 = S[i + 1], z1 = S[i + 2], wt = S[i + 6];
+      let tx = S[i + 3] - x1, ty = S[i + 4] - y1, tz = S[i + 5] - z1;
+      const len = Math.sqrt(tx * tx + ty * ty + tz * tz); tx /= len; ty /= len; tz /= len;
+      const rx = px - x1, ry = py - y1, rz = pz - z1;
+      const s = rx * tx + ry * ty + rz * tz;
+      const qx = rx - s * tx, qy = ry - s * ty, qz = rz - s * tz;
+      let d = Math.sqrt(qx * qx + qy * qy + qz * qz); if (d < 1e-9) d = 1e-9;
+      const a = (Math.asinh((len - s) / d) - Math.asinh(-s / d)) * wt;
+      Ax += a * tx; Ay += a * ty; Az += a * tz;
+    }
+    const c = MU0 / (4 * PI); out[0] = Ax * c; out[1] = Ay * c; out[2] = Az * c; return out;
+  }
+  /* skin surface = coil top face offset by the stand-off, along each wing normal, plus the junction line */
+  function skinPoints(geo, P, nu, nv) {
+    const pts = []; const ct = Math.cos(geo.th), st = Math.sin(geo.th);
+    const off = geo.t / 2 + P.standoff;
+    for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
+      const u = (i + 0.5) / nu * geo.wx, v = (j / (nv - 1)) * geo.ly * 0.46;
+      pts.push([P.gap / 2 + u * ct - off * st, v, u * st + off * ct]);
+    }
+    for (let j = 0; j < nv; j++) pts.push([0, (j / (nv - 1)) * geo.ly * 0.46, off]);
+    return pts;
+  }
+  function peakA(S, geo, P) {
+    const pts = skinPoints(geo, P, 4, 2); let m = 0, at = null; const o = new Float64Array(3);
+    for (const p of pts) { potentialAt(S, p[0], p[1], p[2], o); const a = Math.hypot(o[0], o[1], o[2]); if (a > m) { m = a; at = p; } }
+    return { aE: m, at };
+  }
+
+  /* ---------------------------------------------------------------- inductance (Neumann, closed form for parallel segments) */
+  function psi(u, d) { return u * Math.asinh(u / d) - Math.sqrt(u * u + d * d); }
+  function I2(a1, a2, b1, b2, d) { return psi(a2 - b1, d) + psi(a1 - b2, d) - psi(a2 - b2, d) - psi(a1 - b1, d); }
+  /* concentric rectangles (half sizes hu,hv), parallel planes dz apart. dSameU/V = distance of like sides */
+  function mutRect(hu1, hv1, hu2, hv2, dz, dSameU, dSameV) {
+    const dOu = Math.sqrt(Math.pow(hv1 + hv2, 2) + dz * dz), dOv = Math.sqrt(Math.pow(hu1 + hu2, 2) + dz * dz);
+    const Iu = 2 * I2(-hu1, hu1, -hu2, hu2, dSameU) - 2 * I2(-hu1, hu1, -hu2, hu2, dOu);
+    const Iv = 2 * I2(-hv1, hv1, -hv2, hv2, dSameV) - 2 * I2(-hv1, hv1, -hv2, hv2, dOv);
+    return 1e-7 * (Iu + Iv);
+  }
+  const GLX = [-0.9324695142031521, -0.6612093864662645, -0.2386191860831969, 0.2386191860831969, 0.6612093864662645, 0.9324695142031521];
+  const GLW = [0.1713244923791704, 0.3607615730481386, 0.4679139345726910, 0.4679139345726910, 0.3607615730481386, 0.1713244923791704];
+  const GLT = []; for (let h = 0; h < 2; h++) for (let i = 0; i < 6; i++) GLT.push([h * 0.5 + 0.25 * (GLX[i] + 1), GLW[i]]);
+  function segSegInt(a, b) {      // int int ds dt / |r| ; inner exact (asinh), outer 6-pt Gauss-Legendre on 2 sub-intervals
+    let tx = a[3] - a[0], ty = a[4] - a[1], tz = a[5] - a[2];
+    const len = Math.sqrt(tx * tx + ty * ty + tz * tz); tx /= len; ty /= len; tz /= len;
+    const dx = b[3] - b[0], dy = b[4] - b[1], dz = b[5] - b[2]; const lenQ = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    let sum = 0;
+    for (let k = 0; k < 12; k++) {
+      const t = GLT[k][0];
+      const rx = b[0] + dx * t - a[0], ry = b[1] + dy * t - a[1], rz = b[2] + dz * t - a[2];
+      const s = rx * tx + ry * ty + rz * tz;
+      const ax = rx - s * tx, ay = ry - s * ty, az = rz - s * tz;
+      let d = Math.sqrt(ax * ax + ay * ay + az * az); if (d < 1e-9) d = 1e-9;
+      sum += GLT[k][1] * (Math.asinh((len - s) / d) - Math.asinh(-s / d));
+    }
+    return sum * lenQ / 4;
+  }
+  function diagGMD(geo, n, rg) {
+    const gw = K.gmdRound * geo.d / 2, gb = K.gmdRect * (rg.cb + rg.cz), nh = Math.max(n, 1);
+    return Math.exp(Math.log(gw) / nh + (1 - 1 / nh) * Math.log(gb));
+  }
+  function crossMutual(sa, sb) {          // signed mutual inductance of two single-turn rings (wing1 ring, wing2 ring)
+    let M = 0;
+    for (const A of sa) for (const B of sb) {
+      const ua = [A[3] - A[0], A[4] - A[1], A[5] - A[2]], ub = [B[3] - B[0], B[4] - B[1], B[5] - B[2]];
+      const la = Math.hypot(ua[0], ua[1], ua[2]), lb = Math.hypot(ub[0], ub[1], ub[2]);
+      const dot = (ua[0] * ub[0] + ua[1] * ub[1] + ua[2] * ub[2]) / (la * lb);
+      if (Math.abs(dot) < 1e-9) continue;
+      if (Math.abs(ua[1]) / la > 0.9999 && Math.abs(ub[1]) / lb > 0.9999) {
+        const a1 = Math.min(A[1], A[4]), a2 = Math.max(A[1], A[4]), b1 = Math.min(B[1], B[4]), b2 = Math.max(B[1], B[4]);
+        const d = Math.max(Math.hypot(A[0] - B[0], A[2] - B[2]), 1e-9);
+        M += dot * I2(a1, a2, b1, b2, d);
+      } else M += dot * segSegInt(A, B);
+    }
+    return 1e-7 * M;
+  }
+  function inductance(geo, rg, P) {
+    const R = rg.R; let Lw = 0, M12 = 0;
+    for (let k = 0; k < R; k++) for (let l = 0; l < R; l++) {
+      const hu1 = geo.wx / 2 - rg.s[k], hv1 = geo.ly / 2 - rg.s[k], hu2 = geo.wx / 2 - rg.s[l], hv2 = geo.ly / 2 - rg.s[l];
+      const dz = rg.z[k] - rg.z[l];
+      let dU, dV;
+      if (k === l) { dU = dV = diagGMD(geo, rg.n[k], rg); }
+      else { dU = Math.hypot(hv1 - hv2, dz); dV = Math.hypot(hu1 - hu2, dz); }
+      Lw += rg.n[k] * rg.n[l] * mutRect(hu1, hv1, hu2, hv2, dz, dU, dV);
+    }
+    /* wing-to-wing coupling is ~3% of L: a coarse 3-ring winding reproduces it to ~1% of M12 (<0.1% of L) */
+    const rc = makeRings(geo, 3, 1), Rc = rc.R, W1 = [], W2 = [];
+    for (let k = 0; k < Rc; k++) { W1.push(ringSegs(geo, 1, rc.s[k], rc.z[k], P.gap)); W2.push(ringSegs(geo, -1, rc.s[k], rc.z[k], P.gap)); }
+    for (let k = 0; k < Rc; k++) for (let l = k; l < Rc; l++) {            // mirror symmetry: M(k,l) = M(l,k)
+      const m = rc.n[k] * rc.n[l] * crossMutual(W1[k], W2[l]);
+      M12 += k === l ? m : 2 * m;
+    }
+    return { Lw, M12, L: 2 * Lw + 2 * M12 };
+  }
+
+  /* ---------------------------------------------------------------- thermal (lumped, temperature-dependent copper) */
+  function thermal(geo, P, P0, tsess) {
+    const th = P.thermal;
+    const Uup = 1 / (P.standoff / th.kc + 1 / th.ht);
+    const Ath = geo.Aband * th.spread;
+    const G = Ath * (th.hdn + Uup);
+    const Tref = (th.hdn * th.Ta + Uup * th.Tcore) / (th.hdn + Uup);
+    const C = geo.mcu * K.cp + th.Cx * Ath;
+    const q = P0 * K.alpha;
+    const lam = (G - q) / C;
+    const f0 = P0 * (1 + K.alpha * (Tref - 20)) / C;
+    const Tat = t => { const x = lam * t; const ph = Math.abs(x) < 1e-6 ? 1 : (1 - Math.exp(-Math.min(x, 700))) / x; return Math.min(Tref + f0 * t * ph, 1e4); };
+    const Tend = Tat(tsess);
+    const Tss = lam > 0 ? (P0 * (1 - 20 * K.alpha) + G * Tref) / (G - q) : Infinity;
+    const skin = T => th.Tcore + (Uup / th.ht) * (T - th.Tcore);
+    return { Uup, Ath, G, Tref, C, lam, tau: lam > 0 ? 1 / lam : Infinity, runaway: lam <= 0, Tend, Tss, Ts: skin(Tend), Tat, skin, P0 };
+  }
+
+  /* ---------------------------------------------------------------- one operating mode */
+  function modeCalc(geo, ind, aE, kB, P, M, I) {
+    const W = WAVES[M.wave], dr = P.drive, sp = P.supply;
+    const Rdrive = 2 * dr.Rds + dr.Rsh + dr.Rwire;
+    const Fs = skinFactor(geo.d, M.f);
+    const Irms = W.krms * I;
+    const P0 = M.duty * Irms * Irms * geo.R20 * Fs;
+    const T = thermal(geo, P, P0, M.tsess);
+    const Rhot = geo.R20 * (1 + K.alpha * (T.Tend - 20)) * Fs;
+    const Pcoil = M.duty * Irms * Irms * Rhot;
+    const Pdrive = M.duty * Irms * Irms * Rdrive;
+    const Psw = M.duty * sp.Voc * W.kabs * I * dr.tsw * dr.fpwm;
+    const Pin = Pcoil + Pdrive + Psw;
+    const Vreq = I * W.vpk(Rhot + Rdrive, ind.L, M.f);
+    const Ibus = I * Vreq / Math.max(sp.Voc, 1e-9);
+    const Vav = dr.Dmax * (sp.Voc - sp.Rsrc * Ibus);
+    return {
+      I, Irms, Bpk: kB * I, Epk: W.slew * M.f * aE * I, dBdt: W.slew * M.f * kB * I,
+      P0, T, Rhot, Pcoil, Pdrive, Psw, Pin, Vreq, Vav, Ibus, Rdrive, Fs,
+      E_Wh: Pin * M.tsess / 3600, Ipk: I, W
+    };
+  }
+
+  /* ---------------------------------------------------------------- full design evaluation */
+  const VARS = [
+    { k: 'wx', label: 'Wing width', unit: 'mm', sc: 1e3, lo: 0.04, hi: 0.20, log: false, dec: 0 },
+    { k: 'ly', label: 'Wing length', unit: 'mm', sc: 1e3, lo: 0.08, hi: 0.32, log: false, dec: 0 },
+    { k: 'N', label: 'Turns per wing', unit: '', sc: 1, lo: 2, hi: 100, log: true, dec: 1 },
+    { k: 'awg', label: 'Wire gauge', unit: 'AWG', sc: 1, lo: 8, hi: 28, log: false, dec: 1 },
+    { k: 'th', label: 'Bend angle', unit: '°', sc: 180 / PI, lo: -0.1745, hi: 0.6109, log: false, dec: 1 },
+    { k: 'b', label: 'Winding band', unit: 'mm', sc: 1e3, lo: 0.008, hi: 0.095, log: false, dec: 0 },
+    { k: 'Ia', label: 'Acute peak current', unit: 'A', sc: 1, lo: 0.5, hi: 100, log: true, dec: 1 }
+  ];
+  const CONS = [
+    { id: 'Tc_a', label: 'Coil temp, acute session', unit: '°C', grp: 'thermal' },
+    { id: 'Ts_a', label: 'Skin temp, acute session', unit: '°C', grp: 'thermal' },
+    { id: 'Tc_r', label: 'Coil temp, recovery session', unit: '°C', grp: 'thermal' },
+    { id: 'Ts_r', label: 'Skin temp, recovery session', unit: '°C', grp: 'thermal' },
+    { id: 'E_a', label: 'Induced E-field, acute', unit: 'V/m', grp: 'field' },
+    { id: 'E_r', label: 'Induced E-field, recovery', unit: 'V/m', grp: 'field' },
+    { id: 'V_a', label: 'Drive voltage, acute', unit: 'V', grp: 'drive' },
+    { id: 'V_r', label: 'Drive voltage, recovery', unit: 'V', grp: 'drive' },
+    { id: 'P_a', label: 'Supply power, acute', unit: 'W', grp: 'drive' },
+    { id: 'P_r', label: 'Supply power, recovery', unit: 'W', grp: 'drive' },
+    { id: 'I_a', label: 'Switch current, acute', unit: 'A', grp: 'drive' },
+    { id: 'I_r', label: 'Switch current, recovery', unit: 'A', grp: 'drive' },
+    { id: 'W', label: 'Footprint width', unit: 'mm', grp: 'size' },
+    { id: 'Ln', label: 'Footprint length', unit: 'mm', grp: 'size' },
+    { id: 'H', label: 'Profile height', unit: 'mm', grp: 'size' },
+    { id: 'mCu', label: 'Copper mass', unit: 'kg', grp: 'size' },
+    { id: 'bw', label: 'Band fits wing width', unit: '', grp: 'size' },
+    { id: 'bl', label: 'Band fits wing length', unit: '', grp: 'size' },
+    { id: 'Pcap', label: 'Heat budget, acute', unit: 'W', grp: 'thermal' },
+    { id: 'Eb_a', label: 'Battery energy, acute', unit: 'Wh', grp: 'drive' },
+    { id: 'Eb_r', label: 'Battery energy, recovery', unit: 'Wh', grp: 'drive' },
+    { id: 'Breq', label: 'Required acute flux', unit: 'mT', grp: 'field' }
+  ];
+  function evaluate(xv, P, rgOverride) {
+    const x = { wx: xv[0], ly: xv[1], N: xv[2], awg: xv[3], th: xv[4], b: xv[5] };
+    const Ia = xv[6];
+    const geo = geometry(x, P);
+    const rg = rgOverride ? rgOverride(geo) : makeRings(geo, P.nRings, P.nLay);
+    const S = buildSegs(geo, rg, P);
+    const zT = P.standoff + geo.t / 2 + P.depth;
+    const fT = fieldAt(S, 0, 0, zT, new Float64Array(6));
+    const kB = Math.hypot(fT[0], fT[1], fT[2]);
+    const pa = peakA(S, geo, P);
+    const ind = inductance(geo, rg, P);
+    const Ir = P.recov.Bpk / kB;
+    const A = modeCalc(geo, ind, pa.aE, kB, P, P.acute, Ia);
+    const Rm = modeCalc(geo, ind, pa.aE, kB, P, P.recov, Ir);
+    const th = P.thermal, sz = P.size, sp = P.supply, dr = P.drive;
+    const prof = geo.t + geo.wx * Math.sin(Math.max(geo.th, 0));
+    const g = new Array(CONS.length), val = new Array(CONS.length), lim = new Array(CONS.length), scl = new Array(CONS.length);
+    const set = (i, v, l, s, mode) => { val[i] = v; lim[i] = l; scl[i] = s; g[i] = mode === 'diff' ? (v - l) / s : v / l - 1; };
+    set(0, A.T.Tend, th.Tmax, 10, 'diff'); set(1, A.T.Ts, th.Tskin, 2, 'diff');
+    set(2, Rm.T.Tend, th.Tmax, 10, 'diff'); set(3, Rm.T.Ts, th.Tskin, 2, 'diff');
+    set(4, A.Epk, P.Elim, P.Elim, 'ratio'); set(5, Rm.Epk, P.Elim, P.Elim, 'ratio');
+    set(6, A.Vreq, A.Vav, A.Vav, 'ratio'); set(7, Rm.Vreq, Rm.Vav, Rm.Vav, 'ratio');
+    set(8, A.Pin, sp.Pmax, sp.Pmax, 'ratio'); set(9, Rm.Pin, sp.Pmax, sp.Pmax, 'ratio');
+    set(10, Ia, dr.Isw, dr.Isw, 'ratio'); set(11, Ir, dr.Isw, dr.Isw, 'ratio');
+    set(12, 2 * geo.wx + P.gap, sz.Wmax, sz.Wmax, 'ratio'); set(13, geo.ly, sz.Lmax, sz.Lmax, 'ratio');
+    set(14, prof, sz.Hmax, sz.Hmax, 'ratio'); set(15, geo.mcu, sz.mmax, sz.mmax, 'ratio');
+    set(16, 2 * geo.b + 2 * P.rin, geo.wx, geo.wx, 'ratio'); set(17, 2 * geo.b + 2 * P.rin, geo.ly, geo.ly, 'ratio');
+    if (isFinite(sz.Pcap)) set(18, A.Pcoil, sz.Pcap, sz.Pcap, 'ratio'); else { val[18] = A.Pcoil; lim[18] = Infinity; scl[18] = 1; g[18] = -1; }
+    if (isFinite(sp.capWh)) { set(19, A.E_Wh, 0.8 * sp.capWh, 0.8 * sp.capWh, 'ratio'); set(20, Rm.E_Wh, 0.8 * sp.capWh, 0.8 * sp.capWh, 'ratio'); }
+    else { val[19] = A.E_Wh; lim[19] = Infinity; scl[19] = 1; g[19] = -1; val[20] = Rm.E_Wh; lim[20] = Infinity; scl[20] = 1; g[20] = -1; }
+    if (P.objective === 'minP') { val[21] = A.Bpk; lim[21] = P.BaReq; scl[21] = P.BaReq; g[21] = 1 - A.Bpk / P.BaReq; }
+    else { val[21] = A.Bpk; lim[21] = 0; scl[21] = 1; g[21] = -1; }
+    const f = P.objective === 'minP' ? A.Pcoil / 10 : -A.Bpk / 1e-3;
+    return { f, g, val, lim, scl, geo, rg, kB, aE: pa.aE, aEat: pa.at, ind, A, R: Rm, Ir, zT, prof, S, Bp: A.Bpk };
+  }
+
+  /* ---------------------------------------------------------------- optimizer: augmented Lagrangian + projected BFGS */
+  function toX(u) { return VARS.map((v, i) => v.log ? Math.exp(Math.log(v.lo) + u[i] * (Math.log(v.hi) - Math.log(v.lo))) : v.lo + u[i] * (v.hi - v.lo)); }
+  function toU(x) { return VARS.map((v, i) => v.log ? (Math.log(x[i]) - Math.log(v.lo)) / (Math.log(v.hi) - Math.log(v.lo)) : (x[i] - v.lo) / (v.hi - v.lo)); }
+  const clamp01 = z => Math.min(1, Math.max(0, z));
+
+  function solve(P, opt) {
+    opt = opt || {};
+    const n = VARS.length, m = CONS.length;
+    const lock = opt.lock || new Array(n).fill(null);               // physical value or null
+    const free = []; for (let i = 0; i < n; i++) if (lock[i] == null) free.push(i);
+    const nF = free.length;
+    let evals = 0;
+    const ev = u => { evals++; return evaluate(toX(u), P); };
+    function applyLock(u) { for (let i = 0; i < n; i++) if (lock[i] != null) u[i] = clamp01(toU(VARS.map((v, j) => j === i ? lock[i] : v.lo))[i]); return u; }
+    function LA(r, lam, rho) {
+      let s = r.f; for (let i = 0; i < m; i++) { const t = Math.max(0, lam[i] + rho * r.g[i]); s += (t * t - lam[i] * lam[i]) / (2 * rho); } return s;
+    }
+    function grad(u, lam, rho, h) {
+      const gr = new Array(n).fill(0);
+      for (const i of free) {
+        const up = u.slice(), um = u.slice(); const hp = Math.min(h, 1 - u[i]), hm = Math.min(h, u[i]);
+        up[i] = u[i] + hp; um[i] = u[i] - hm;
+        gr[i] = (LA(ev(up), lam, rho) - LA(ev(um), lam, rho)) / (hp + hm);
+      }
+      return gr;
+    }
+    function inner(u0, lam, rho, maxIt) {
+      let u = u0.slice(), r = ev(u), F = LA(r, lam, rho);
+      let H = []; const reset = () => { H = []; for (let i = 0; i < n; i++) { H.push(new Array(n).fill(0)); H[i][i] = 1; } }; reset();
+      let gr = grad(u, lam, rho, 1e-6);
+      for (let it = 0; it < maxIt; it++) {
+        const act = new Array(n).fill(false);
+        for (const i of free) if ((u[i] <= 1e-9 && gr[i] > 0) || (u[i] >= 1 - 1e-9 && gr[i] < 0)) act[i] = true;
+        const fi = free.filter(i => !act[i]);
+        let gn = 0; for (const i of fi) gn += gr[i] * gr[i]; gn = Math.sqrt(gn);
+        if (gn < (opt.gtol || 1e-5)) break;
+        const d = new Array(n).fill(0);
+        for (const i of fi) { let s = 0; for (const j of fi) s += H[i][j] * gr[j]; d[i] = -s; }
+        let dd = 0; for (const i of fi) dd += d[i] * gr[i];
+        if (dd >= 0) { reset(); for (const i of fi) d[i] = -gr[i]; dd = -gn * gn; }
+        let a = 1, ok = false, un = null, rn = null, Fn = 0;
+        for (let ls = 0; ls < 30; ls++) {
+          un = u.slice(); for (const i of fi) un[i] = clamp01(u[i] + a * d[i]);
+          rn = ev(un); Fn = LA(rn, lam, rho);
+          let step = 0; for (const i of fi) step += (un[i] - u[i]) * gr[i];
+          if (Fn <= F + 1e-4 * step) { ok = true; break; }
+          a *= 0.5;
+        }
+        if (!ok) { if (H[0][0] !== 1) { reset(); continue; } break; }
+        const gnew = grad(un, lam, rho, 1e-6);
+        const s = new Array(n).fill(0), y = new Array(n).fill(0);
+        for (const i of fi) { s[i] = un[i] - u[i]; y[i] = gnew[i] - gr[i]; }
+        let sy = 0; for (const i of fi) sy += s[i] * y[i];
+        if (sy > 1e-12) {
+          const Hy = new Array(n).fill(0); for (const i of fi) { let t = 0; for (const j of fi) t += H[i][j] * y[j]; Hy[i] = t; }
+          let yHy = 0; for (const i of fi) yHy += y[i] * Hy[i];
+          for (const i of fi) for (const j of fi) H[i][j] += (1 + yHy / sy) * s[i] * s[j] / sy - (Hy[i] * s[j] + s[i] * Hy[j]) / sy;
+        }
+        const dF = F - Fn; u = un; r = rn; F = Fn; gr = gnew;
+        if (dF < 1e-12 && it > 3) break;
+      }
+      return { u, r, F };
+    }
+    function runFrom(uStart, maxOuter, maxInner) {
+      let u = applyLock(uStart.slice()), lam = opt.lam0 ? opt.lam0.slice() : new Array(m).fill(0), rho = opt.rho0 || 10, prevViol = Infinity, last; const trace = [];
+      for (let k = 0; k < maxOuter; k++) {
+        last = inner(u, lam, rho, maxInner); u = last.u;
+        const r = last.r; let viol = 0;
+        for (let i = 0; i < m; i++) viol = Math.max(viol, r.g[i]);
+        trace.push({ u: u.slice(), f: r.f, viol: Math.max(viol, 0), rho, B: r.A.Bpk, lam: lam.slice() });
+        for (let i = 0; i < m; i++) lam[i] = Math.max(0, lam[i] + rho * r.g[i]);
+        if (viol < 2e-5 && (k >= 2 || (opt.lam0 && k >= 1))) break;
+        if (viol > 0.25 * prevViol) rho = Math.min(rho * 4, 1e5);
+        prevViol = Math.max(viol, 0);
+      }
+      const r = ev(u); return { u, r, lam, trace };
+    }
+    const starts = opt.starts || [];
+    let best = null;
+    const score = o => { const v = Math.max(0, ...o.r.g); return o.r.f + (v > 1e-3 ? 1e3 * v : 0); };
+    for (const u0 of starts) {
+      const o = runFrom(u0, opt.maxOuter || 10, opt.maxInner || 80);
+      if (!best || score(o) < score(best)) best = o;
+    }
+    // KKT diagnostics at the solution
+    const rho = 10, lam = best.lam;
+    const gr = new Array(n).fill(0);
+    {
+      const u = best.u, h = 1e-6;
+      for (const i of free) {
+        const up = u.slice(), um = u.slice(); const hp = Math.min(h, 1 - u[i]), hm = Math.min(h, u[i]); up[i] += hp; um[i] -= hm;
+        const rp = ev(up), rm = ev(um);
+        let s = (rp.f - rm.f) / (hp + hm);
+        for (let c = 0; c < m; c++) s += lam[c] * (rp.g[c] - rm.g[c]) / (hp + hm);
+        gr[i] = s;
+      }
+    }
+    let stat = 0; for (const i of free) { const u = best.u[i]; if (!((u <= 1e-6 && gr[i] > 0) || (u >= 1 - 1e-6 && gr[i] < 0))) stat += gr[i] * gr[i]; }
+    const viol = Math.max(0, ...best.r.g);
+    let comp = 0; for (let c = 0; c < m; c++) comp = Math.max(comp, Math.abs(lam[c] * best.r.g[c]));
+    const atBound = best.u.map((v, i) => lock[i] != null ? 'locked' : v <= 1e-6 ? 'lo' : v >= 1 - 1e-6 ? 'hi' : '');
+    return { u: best.u, x: toX(best.u), r: best.r, lam, kkt: { stat: Math.sqrt(stat), viol, comp }, evals, free, trace: best.trace, atBound };
+  }
+
+  return { PI, MU0, K, VARS, CONS, WAVES, SUPPLIES, defaults, awgDia, enamel, skinFactor, geometry, makeRings, discreteRings, ringSegs, buildSegs, fieldAt, potentialAt, skinPoints, peakA,
+    psi, I2, mutRect, crossMutual, segSegInt, inductance, diagGMD, thermal, modeCalc, evaluate, solve, toX, toU };
+});
+
+</script>
+<script>
+(function(){'use strict';
+/* ===================== part 1: utilities, equation typesetter, charts ===================== */
+const C = window.PEMF;
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function fx(v, d) {                       // fixed-decimals, safe for non-finite
+  if (v === Infinity) return '∞'; if (!isFinite(v)) return '–';
+  return v.toFixed(d == null ? 2 : d);
+}
+function sig(v, n) {                      // n significant digits, no sci notation for typical ranges
+  if (!isFinite(v)) return v === Infinity ? '∞' : '–'; if (v === 0) return '0';
+  const a = Math.abs(v), p = Math.floor(Math.log10(a)), d = Math.max(0, n - 1 - p);
+  return v.toFixed(Math.min(d, 6));
+}
+function eng(v, unit, n) {                // engineering prefix formatting
+  if (!isFinite(v)) return '–'; if (v === 0) return '0 ' + unit;
+  const pre = [[1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'µ'], [1e-9, 'n']]; const a = Math.abs(v);
+  for (const [m, p] of pre) if (a >= m * 0.9999) return sig(v / m, n || 3) + ' ' + p + unit;
+  return sig(v / 1e-9, n || 3) + ' n' + unit;
+}
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function debounce(fn, ms) { let t; return function () { const a = arguments; clearTimeout(t); t = setTimeout(() => fn.apply(null, a), ms); }; }
+function niceTicks(lo, hi, n) {
+  n = n || 5; const span = hi - lo; if (!(span > 0)) return [lo];
+  const s0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(s0))), nm = s0 / mag;
+  const step = (nm < 1.5 ? 1 : nm < 3 ? 2 : nm < 7 ? 5 : 10) * mag; const t = [];
+  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + step * 1e-9; v += step) t.push(+v.toFixed(12));
+  return t;
+}
+function tickFmt(step) { return v => { const d = step >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(step) + 1e-9)); return v.toFixed(d); }; }
+
+/* ---------- equation typesetter: small LaTeX subset -> HTML ---------- */
+const SYM = { cdot: '·', times: '×', le: '≤', ge: '≥', approx: '≈', partial: '∂', nabla: '∇', oint: '∮', sum: '∑', int: '∫', infty: '∞', Rightarrow: '⇒', pm: '±', to: '→', mu: 'μ', pi: 'π', rho: 'ρ', alpha: 'α', lambda: 'λ', sigma: 'σ', delta: 'δ', phi: 'φ', theta: 'θ', tau: 'τ', omega: 'ω', varphi: 'φ', Delta: 'Δ', neq: '≠', propto: '∝', in: '∈', Phi: 'Φ', Psi: 'Ψ', psi: 'ψ', kappa: 'κ', eta: 'η', gamma: 'γ', epsilon: 'ε', sim: '∼', ell: 'ℓ', ldots: '…', leftarrow: '←', rightarrow: '→', Sigma: 'Σ', ge2: '≥' };
+function tex(src) {
+  let i = 0;
+  function peek() { return src[i]; }
+  function group() {
+    while (src[i] === ' ') i++;
+    if (src[i] === '{') { i++; const h = expr('}'); i++; return h; }
+    return atom(true);
+  }
+  function word() { let w = ''; while (i < src.length && /[A-Za-z]/.test(src[i])) w += src[i++]; return w; }
+  function atom(single, upright) {
+    const c = src[i];
+    if (c === '\\') {
+      i++; const w = word();
+      if (!w) { const ch = src[i++]; if (ch === '!') return ''; return ch === ',' ? '<span class="th"></span>' : ch === ';' ? '<span class="sp"></span>' : ch === ' ' ? ' ' : esc(ch || ''); }
+      if (w === 'frac') { const a = group(), b = group(); return '<span class="fr"><span class="nu">' + a + '</span><span class="de">' + b + '</span></span>'; }
+      if (w === 'sqrt') { const a = group(); return '<span class="sq"><span class="rd">√</span><span class="rb">' + a + '</span></span>'; }
+      if (w === 'mathrm' || w === 'text') { const a = group(); return '<span class="up">' + a.replace(/<\/?i>/g, '') + '</span>'; }
+      if (w === 'mathcal') { const a = group(); const t = a.replace(/<\/?i>/g, ''); return '<i>' + (t === 'L' ? 'ℒ' : t) + '</i>'; }
+      if (w === 'hat') { const a = group(); return '<span class="hat">' + a + '</span>'; }
+      if (w === 'vec') { const a = group(); return '<b class="vec">' + a + '</b>'; }
+      if (w === 'left' || w === 'right') return '';
+      if (w === 'quad') return '<span class="qd"></span>';
+      if (w === 'qquad') return '<span class="qd"></span><span class="qd"></span>';
+      if (SYM[w]) { const big = (w === 'sum' || w === 'int' || w === 'oint'); return big ? '<span class="big">' + SYM[w] + '</span>' : (/^[a-zA-Z]/.test(SYM[w]) || /[α-ωΔΦΨ]/.test(SYM[w]) ? '<i>' + SYM[w] + '</i>' : SYM[w]); }
+      return esc(w);
+    }
+    i++;
+    if (/[A-Za-zα-ωΑ-Ω]/.test(c)) return upright ? c : '<i>' + c + '</i>';
+    if (c === '-') return '−';
+    if (c === '*') return '·';
+    return esc(c);
+  }
+  function expr(stop) {
+    let out = '';
+    while (i < src.length && src[i] !== stop) {
+      let base = atom(false);
+      let sup = null, sub = null;
+      for (;;) {
+        while (src[i] === ' ') i++;
+        if (src[i] === '^') { i++; sup = group(); } else if (src[i] === '_') { i++; sub = group(); } else break;
+      }
+      if (sup != null && sub != null) base += '<span class="ss"><sup>' + sup + '</sup><sub>' + sub + '</sub></span>';
+      else if (sup != null) base += '<sup>' + sup + '</sup>';
+      else if (sub != null) base += '<sub>' + sub + '</sub>';
+      out += base;
+    }
+    return out;
+  }
+  return expr(null);
+}
+
+/* ---------- line chart (SVG) with hover read-out ---------- */
+class LineChart {
+  constructor(el, opt) { this.el = el; this.o = opt; this.uid = 'c' + Math.random().toString(36).slice(2, 7); el.classList.add('chart'); this.ro = null; }
+  set(opt) { this.o = Object.assign(this.o, opt); this.draw(); }
+  draw() {
+    const o = this.o, el = this.el; const W = Math.max(240, el.clientWidth || 320), H = o.height || 190;
+    const m = { l: o.ml || 46, r: 14, t: 10, b: 30 };
+    const ser = (o.series || []).filter(s => s.pts && s.pts.length);
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const s of ser) for (const p of s.pts) { if (isFinite(p[0])) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); } if (isFinite(p[1])) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); } }
+    for (const h of (o.hlines || [])) if (isFinite(h.y) && o.includeRefs !== false) { y0 = Math.min(y0, h.y); y1 = Math.max(y1, h.y); }
+    for (const mk of (o.markers || [])) { x0 = Math.min(x0, mk.x); x1 = Math.max(x1, mk.x); y0 = Math.min(y0, mk.y); y1 = Math.max(y1, mk.y); }
+    if (!isFinite(x0)) { el.innerHTML = '<div class="empty">No data</div>'; return; }
+    if (o.xDom) { x0 = o.xDom[0]; x1 = o.xDom[1]; }
+    if (o.yDom) { y0 = o.yDom[0]; y1 = o.yDom[1]; } else { if (o.yZero !== false) y0 = Math.min(0, y0); const pad = (y1 - y0) * 0.06 || 1; y1 += pad; if (y0 !== 0) y0 -= pad; }
+    if (x1 === x0) x1 = x0 + 1; if (y1 === y0) y1 = y0 + 1;
+    const pw = W - m.l - m.r, ph = H - m.t - m.b;
+    const X = v => m.l + (v - x0) / (x1 - x0) * pw, Y = v => m.t + ph - (v - y0) / (y1 - y0) * ph;
+    const xt = niceTicks(x0, x1, Math.max(3, Math.floor(pw / 80))), yt = niceTicks(y0, y1, 4);
+    const xs = xt.length > 1 ? xt[1] - xt[0] : 1, ys = yt.length > 1 ? yt[1] - yt[0] : 1;
+    const fX = o.fmtX || tickFmt(xs), fY = o.fmtY || tickFmt(ys);
+    let g = '';
+    for (const v of yt) g += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tick" x="${m.l - 6}" y="${Y(v) + 3.5}" text-anchor="end">${fY(v)}</text>`;
+    for (const v of xt) g += `<text class="tick" x="${X(v)}" y="${H - m.b + 15}" text-anchor="middle">${fX(v)}</text><line class="axtick" x1="${X(v)}" x2="${X(v)}" y1="${H - m.b}" y2="${H - m.b + 4}"/>`;
+    g += `<line class="axis" x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}"/>`;
+    if (o.xLabel) g += `<text class="axl" x="${m.l + pw / 2}" y="${H - 3}" text-anchor="middle">${esc(o.xLabel)}</text>`;
+    if (o.yLabel) g += `<text class="axl" x="11" y="${m.t + ph / 2}" text-anchor="middle" transform="rotate(-90 11 ${m.t + ph / 2})">${esc(o.yLabel)}</text>`;
+    for (const h of (o.hlines || [])) if (isFinite(h.y) && h.y >= y0 && h.y <= y1) g += `<line class="ref ${h.cls || ''}" x1="${m.l}" x2="${W - m.r}" y1="${Y(h.y)}" y2="${Y(h.y)}"/><text class="reflab" x="${W - m.r - 3}" y="${Y(h.y) - 4}" text-anchor="end">${esc(h.label || '')}</text>`;
+    for (const v of (o.vlines || [])) if (v.x >= x0 && v.x <= x1) g += `<line class="ref" x1="${X(v.x)}" x2="${X(v.x)}" y1="${m.t}" y2="${H - m.b}"/><text class="reflab" x="${X(v.x) + 4}" y="${m.t + 10}">${esc(v.label || '')}</text>`;
+    for (const s of ser) {
+      const pts = s.pts.filter(p => isFinite(p[0]) && isFinite(p[1]));
+      const d = pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(clamp(p[1], y0 - (y1 - y0), y1 + (y1 - y0))).toFixed(1)).join('');
+      if (s.area) g += `<path d="${d}L${X(pts[pts.length - 1][0]).toFixed(1)} ${Y(y0)}L${X(pts[0][0]).toFixed(1)} ${Y(y0)}Z" fill="${s.color}" opacity=".10"/>`;
+      g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${s.w || 2}" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''} stroke-linejoin="round" stroke-linecap="round"/>`;
+      if (s.dots) for (const p of pts) g += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="3.2" fill="${s.color}" stroke="var(--surface)" stroke-width="1.5"/>`;
+    }
+    for (const mk of (o.markers || [])) g += `<circle cx="${X(mk.x)}" cy="${Y(mk.y)}" r="5" fill="${mk.color || 'var(--ink)'}" stroke="var(--surface)" stroke-width="2"/>` + (mk.label ? `<text class="reflab" x="${X(mk.x) + 8}" y="${Y(mk.y) - 8}">${esc(mk.label)}</text>` : '');
+    const legend = ser.filter(s => s.name).map(s => `<span class="lg"><i style="background:${s.color};${s.dash ? 'background:repeating-linear-gradient(90deg,' + s.color + ' 0 4px,transparent 4px 7px)' : ''}"></i>${esc(s.name)}</span>`).join('');
+    el.innerHTML = (legend ? `<div class="legend">${legend}</div>` : '') + `<div class="plot"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(o.title || 'chart')}">${g}<line class="xh" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" style="display:none"/><rect class="hit" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="transparent"/></svg><div class="tip" hidden></div></div>`;
+    const svg = $('svg', el), tip = $('.tip', el), xh = $('.xh', svg), hit = $('.hit', svg);
+    const self = this;
+    const move = ev => {
+      const r = svg.getBoundingClientRect(); const px = (ev.clientX - r.left) * (W / r.width);
+      const xv = x0 + (px - m.l) / pw * (x1 - x0); let html = `<b>${esc((o.tipX || fX)(xv))}${o.xUnit ? ' ' + o.xUnit : ''}</b>`;
+      for (const s of ser) { if (!s.name) continue; const p = s.pts; let best = null; for (let i = 0; i < p.length - 1; i++) if (xv >= p[i][0] && xv <= p[i + 1][0]) { const t = (xv - p[i][0]) / (p[i + 1][0] - p[i][0] || 1); best = p[i][1] + t * (p[i + 1][1] - p[i][1]); break; }
+        if (best == null) { const k = p.reduce((a, q) => Math.abs(q[0] - xv) < Math.abs(a[0] - xv) ? q : a, p[0]); if (Math.abs(k[0] - xv) < (x1 - x0) * 0.04) best = k[1]; }
+        if (best != null) html += `<div><i style="background:${s.color}"></i>${esc(s.name)} <b>${(o.tipY || fY)(best)}${o.yUnit ? ' ' + o.yUnit : ''}</b></div>`; }
+      xh.setAttribute('x1', px); xh.setAttribute('x2', px); xh.style.display = ''; tip.innerHTML = html; tip.hidden = false;
+      const tw = tip.offsetWidth; tip.style.left = clamp(px * r.width / W + 10, 0, r.width - tw) + 'px'; tip.style.top = '4px';
+    };
+    hit.addEventListener('pointermove', move); hit.addEventListener('pointerdown', move);
+    hit.addEventListener('pointerleave', () => { xh.style.display = 'none'; tip.hidden = true; });
+    if (!this.ro && window.ResizeObserver) { this.lastW = el.clientWidth; this.ro = new ResizeObserver(() => { if (Math.abs(el.clientWidth - this.lastW) > 8) { this.lastW = el.clientWidth; this.draw(); } }); this.ro.observe(el); }
+  }
+}
+
+/* ---------- colour ramps (sequential blue, validated reference palette) ---------- */
+const RAMP = ['#cde2fb', '#b7d3f6', '#9ec5f4', '#86b6ef', '#6da7ec', '#5598e7', '#3987e5', '#2a78d6', '#256abf', '#1c5cab', '#184f95', '#104281', '#0d366b'];
+function hex2rgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+const RAMP_RGB = RAMP.map(hex2rgb);
+function rampColor(t, dark) {             // t in 0..1, magnitude; light mode: high = dark ; dark mode: high = light
+  t = clamp(t, 0, 1); if (dark) t = 1 - t;
+  const f = t * (RAMP_RGB.length - 1), i = Math.min(RAMP_RGB.length - 2, Math.floor(f)), k = f - i, a = RAMP_RGB[i], b = RAMP_RGB[i + 1];
+  return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+}
+function isDark() { const t = document.documentElement.getAttribute('data-theme'); if (t) return t === 'dark'; return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches; }
+/* marching squares: returns segments [x1,y1,x2,y2] in grid coordinates for the given level */
+function contour(grid, nx, ny, level) {
+  const segs = [];
+  const v = (i, j) => grid[j * nx + i];
+  const lerp = (a, b) => { const d = b - a; return d === 0 ? 0.5 : (level - a) / d; };
+  for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    const a = v(i, j), b = v(i + 1, j), c = v(i + 1, j + 1), d = v(i, j + 1);
+    if (!isFinite(a + b + c + d)) continue;
+    const idx = (a > level ? 1 : 0) | (b > level ? 2 : 0) | (c > level ? 4 : 0) | (d > level ? 8 : 0);
+    if (idx === 0 || idx === 15) continue;
+    const pts = {
+      t: [i + lerp(a, b), j], r: [i + 1, j + lerp(b, c)], bo: [i + lerp(d, c), j + 1], l: [i, j + lerp(a, d)]
+    };
+    const T = {
+      1: ['l', 't'], 2: ['t', 'r'], 3: ['l', 'r'], 4: ['r', 'bo'], 6: ['t', 'bo'], 7: ['l', 'bo'], 8: ['l', 'bo'], 9: ['t', 'bo'], 11: ['r', 'bo'], 12: ['l', 'r'], 13: ['t', 'r'], 14: ['l', 't']
+    };
+    if (idx === 5) { segs.push([...pts.l, ...pts.t], [...pts.r, ...pts.bo]); continue; }
+    if (idx === 10) { segs.push([...pts.t, ...pts.r], [...pts.l, ...pts.bo]); continue; }
+    const e = T[idx]; if (e) segs.push([...pts[e[0]], ...pts[e[1]]]);
+  }
+  return segs;
+}
+
+/* ===================== part 2: field maps, profiles, waveform and thermal series ===================== */
+const Q = {                       // physical quantity at a point, per ampere -> absolute for the active mode
+  B(S, x, y, z, k) { const f = C.fieldAt(S, x, y, z, new Float64Array(6)); return Math.sqrt(f[0] * f[0] + f[1] * f[1] + f[2] * f[2]) * k.I; },
+  E(S, x, y, z, k) { const f = C.fieldAt(S, x, y, z, new Float64Array(6)); return Math.sqrt(f[3] * f[3] + f[4] * f[4] + f[5] * f[5]) * k.slewF * k.I; }
+};
+function modeKit(r, P, mode) {                 // current, frequency and slew factor of a mode
+  const M = mode === 'a' ? P.acute : P.recov, W = C.WAVES[M.wave], res = mode === 'a' ? r.A : r.R;
+  return { I: res.I, f: M.f, W, slewF: W.slew * M.f, M, res };
+}
+function skinZ(r, P, x) {                      // vertical position of the skin surface above x
+  const g = r.geo, off = g.t / 2 + P.standoff, ax = Math.abs(x) - P.gap / 2;
+  return ax <= 0 ? off : ax * Math.tan(g.th) + off / Math.cos(g.th);
+}
+function planeSpec(r, P, plane) {
+  const g = r.geo, ct = Math.cos(g.th), st = Math.sin(g.th);
+  const X = P.gap / 2 + g.wx * ct + 0.03, Y = g.ly / 2 + 0.03;
+  const zlo = Math.min(0, g.wx * st) - 0.03, zhi = r.zT + 0.035;
+  if (plane === 'xz') return { x0: -X, x1: X, y0: zlo, y1: zhi, ax: 'x', ay: 'z', pt: (a, b) => [a, 0, b] };
+  if (plane === 'yz') return { x0: -Y, x1: Y, y0: zlo, y1: zhi, ax: 'y', ay: 'z', pt: (a, b) => [0, a, b] };
+  if (plane === 'xy') return { x0: -X, x1: X, y0: -Y, y1: Y, ax: 'x', ay: 'y', pt: (a, b) => [a, b, r.zT] };
+  return { x0: -X, x1: X, y0: -Y, y1: Y, ax: 'x', ay: 'y', pt: (a, b) => [a, b, skinZ(r, P, a)] };   // 'skin'
+}
+const PLANE_INFO = {
+  xz: 'Transverse section through the target (across the spine)',
+  yz: 'Sagittal section on the junction line (along the spine)',
+  xy: 'Coronal plane at the target depth, seen from the patient',
+  skin: 'Skin surface seen from above'
+};
+function drawFieldMap(canvas, r, P, opt) {
+  const kit = modeKit(r, P, opt.mode), plane = opt.plane, q = opt.q, spec = planeSpec(r, P, plane);
+  const wrap = canvas.parentElement; const Wcss = Math.max(260, wrap.clientWidth), dpr = Math.min(2, window.devicePixelRatio || 1);
+  const aspect = (spec.y1 - spec.y0) / (spec.x1 - spec.x0);
+  const Hcss = clamp(Wcss * aspect, 190, 380), wDom = spec.x1 - spec.x0, hDom = spec.y1 - spec.y0;
+  // keep metric aspect: shrink domain drawing width if height clamped
+  let drawW = Wcss, drawH = Hcss; const metric = Hcss / hDom; if (wDom * metric < Wcss) { drawW = wDom * metric; }
+  canvas.style.width = drawW + 'px'; canvas.style.height = drawH + 'px'; canvas.width = Math.round(drawW * dpr); canvas.height = Math.round(drawH * dpr);
+  const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const nx = 84, ny = clamp(Math.round(nx * drawH / drawW), 24, 84);
+  const vals = new Float64Array(nx * ny); const fn = Q[q];
+  const refPt = [0, 0, r.geo.t / 2 + P.standoff];
+  const Bref = Q.B(r.S, refPt[0], refPt[1], refPt[2], kit), Eref = r.aE * kit.slewF * kit.I;
+  const vmax = (q === 'B' ? Bref * 1.15 : Eref * 1.1), vmin = vmax / (q === 'B' ? 40 : 30);
+  const lmin = Math.log10(vmin), lmax = Math.log10(vmax); const dark = isDark();
+  const img = new ImageData(nx, ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const a = spec.x0 + (i + 0.5) / nx * wDom, b = spec.y1 - (j + 0.5) / ny * hDom, p = spec.pt(a, b);
+    const v = fn(r.S, p[0], p[1], p[2], kit); vals[j * nx + i] = v;
+    const t = (Math.log10(Math.max(v, 1e-30)) - lmin) / (lmax - lmin), c = rampColor(t, dark);
+    const o = (j * nx + i) * 4; img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+  }
+  const off = document.createElement('canvas'); off.width = nx; off.height = ny; off.getContext('2d').putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(off, 0, 0, drawW, drawH);
+  const PX = a => (a - spec.x0) / wDom * drawW, PY = b => drawH - (b - spec.y0) / hDom * drawH;
+  const ink = cssVar('--ink'), surf = cssVar('--surface'), muted = cssVar('--muted');
+  // iso-contour at the field value found at the target (for B) or at the E limit
+  const lev = q === 'B' ? kit.res.Bpk : P.Elim;
+  const segs = contour(vals, nx, ny, lev);
+  if (segs.length) {
+    ctx.save(); ctx.strokeStyle = ink; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]); ctx.beginPath();
+    for (const s of segs) { ctx.moveTo(s[0] / nx * drawW, s[1] / ny * drawH); ctx.lineTo(s[2] / nx * drawW, s[3] / ny * drawH); } ctx.stroke(); ctx.restore();
+  }
+  // geometry overlays
+  const g = r.geo, ct = Math.cos(g.th), st = Math.sin(g.th);
+  ctx.save(); ctx.lineCap = 'round';
+  if (plane === 'xz') {
+    for (const sg of [1, -1]) {
+      ctx.strokeStyle = surf; ctx.lineWidth = Math.max(3, g.t * (drawH / hDom)) + 3; ctx.beginPath(); ctx.moveTo(PX(sg * P.gap / 2), PY(0)); ctx.lineTo(PX(sg * (P.gap / 2 + g.wx * ct)), PY(g.wx * st)); ctx.stroke();
+      ctx.strokeStyle = ink; ctx.lineWidth = Math.max(3, g.t * (drawH / hDom)); ctx.beginPath(); ctx.moveTo(PX(sg * P.gap / 2), PY(0)); ctx.lineTo(PX(sg * (P.gap / 2 + g.wx * ct)), PY(g.wx * st)); ctx.stroke();
+    }
+    // skin line
+    ctx.setLineDash([]);
+    for (const [col, lw] of [[surf, 5], [ink, 2]]) { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath();
+      for (let i = 0; i <= 60; i++) { const x = spec.x0 + i / 60 * wDom; const zz = skinZ(r, P, x); i ? ctx.lineTo(PX(x), PY(zz)) : ctx.moveTo(PX(x), PY(zz)); } ctx.stroke(); }
+    ctx.font = '600 10px "IBM Plex Mono", monospace'; ctx.textAlign = 'left'; const ly0 = PY(skinZ(r, P, spec.x0)) - 7; ctx.fillStyle = surf; ctx.fillRect(22, ly0 - 10, 30, 14); ctx.fillStyle = ink; ctx.fillText('skin', 26, ly0);
+  } else if (plane === 'xy' || plane === 'skin') {
+    ctx.strokeStyle = ink; ctx.lineWidth = 1.6;
+    for (const sg of [1, -1]) {
+      const xa = sg * P.gap / 2, xb = sg * (P.gap / 2 + g.wx * ct);
+      ctx.strokeRect(Math.min(PX(xa), PX(xb)), PY(g.ly / 2), Math.abs(PX(xb) - PX(xa)), PY(-g.ly / 2) - PY(g.ly / 2));
+      const bi = g.b * ct; const xa2 = sg * (P.gap / 2 + bi), xb2 = sg * (P.gap / 2 + g.wx * ct - bi);
+      ctx.save(); ctx.globalAlpha = 0.5; ctx.setLineDash([3, 3]); ctx.strokeRect(Math.min(PX(xa2), PX(xb2)), PY(g.ly / 2 - g.b), Math.abs(PX(xb2) - PX(xa2)), PY(-g.ly / 2 + g.b) - PY(g.ly / 2 - g.b)); ctx.restore();
+    }
+  } else {
+    ctx.strokeStyle = ink; ctx.lineWidth = 1.5; ctx.setLineDash([2, 3]);
+    for (const y of [-g.ly / 2, g.ly / 2]) { ctx.beginPath(); ctx.moveTo(PX(y), PY(spec.y0)); ctx.lineTo(PX(y), PY(spec.y0) - 14); ctx.stroke(); }
+    ctx.setLineDash([]); ctx.fillStyle = ink; ctx.font = '10px "IBM Plex Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('coil ends', PX(0), PY(spec.y0) - 5);
+  }
+  // target marker
+  const tx = plane === 'skin' ? null : 0, ty = (plane === 'xz' || plane === 'yz') ? r.zT : 0;
+  if (tx !== null) { ctx.setLineDash([]); ctx.strokeStyle = surf; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(PX(0), PY(ty), 6, 0, 7); ctx.stroke(); ctx.strokeStyle = ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(PX(0), PY(ty), 6, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(PX(0), PY(ty), 1.6, 0, 7); ctx.fillStyle = ink; ctx.fill(); }
+  // axes ticks (cm)
+  ctx.fillStyle = muted; ctx.strokeStyle = muted; ctx.font = '10px "IBM Plex Mono", monospace'; ctx.lineWidth = 1; ctx.setLineDash([]);
+  const cm = v => v * 100;
+  const xt = niceTicks(cm(spec.x0), cm(spec.x1), 6), yt = niceTicks(cm(spec.y0), cm(spec.y1), 5);
+  ctx.textAlign = 'center'; for (const t of xt) { const x = PX(t / 100); ctx.fillStyle = surf; ctx.globalAlpha = .75; ctx.fillRect(x - 12, drawH - 14, 24, 13); ctx.globalAlpha = 1; ctx.fillStyle = muted; ctx.fillText(t, x, drawH - 4); }
+  ctx.textAlign = 'left'; for (const t of yt) { const y = PY(t / 100); ctx.fillStyle = surf; ctx.globalAlpha = .75; ctx.fillRect(0, y - 6, 22, 12); ctx.globalAlpha = 1; ctx.fillStyle = muted; ctx.fillText(t, 2, y + 3.5); }
+  ctx.restore();
+  return { spec, vmin, vmax, drawW, drawH, kit, q, fn: (a, b) => { const p = spec.pt(a, b); return fn(r.S, p[0], p[1], p[2], kit); } };
+}
+function colorbarHTML(info, mark) {
+  const dark = isDark(), stops = []; for (let i = 0; i <= 12; i++) { const c = rampColor(i / 12, dark); stops.push(`rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0}) ${(i / 12 * 100).toFixed(0)}%`); }
+  const lo = Math.log10(info.vmin), hi = Math.log10(info.vmax); const unit = info.q === 'B' ? 'mT' : 'V/m', sc = info.q === 'B' ? 1e3 : 1;
+  let ticks = ''; const decs = []; for (let e = Math.ceil(lo + Math.log10(sc)); e <= Math.floor(hi + Math.log10(sc)); e++) decs.push(e);
+  for (const e of decs) for (const m of [1, 3]) { const v = m * Math.pow(10, e) / sc, t = (Math.log10(v) - lo) / (hi - lo); if (t >= 0 && t <= 1) ticks += `<span style="left:${t * 100}%">${m * Math.pow(10, e) < 1 ? (m * Math.pow(10, e)).toFixed(2) : m * Math.pow(10, e)}</span>`; }
+  let mk = ''; if (mark && mark.v > 0) { const t = (Math.log10(mark.v) - lo) / (hi - lo); if (t >= 0 && t <= 1) mk = `<i class="cbm" style="left:${t * 100}%" title="${esc(mark.label)}"></i>`; }
+  return `<div class="cb"><div class="cbbar" style="background:linear-gradient(90deg,${stops.join(',')})">${mk}</div><div class="cbtk">${ticks}</div><div class="cbu">${unit} · log scale · dashed line = ${info.q === 'B' ? 'flux at target' : 'E limit'}</div></div>`;
+}
+function depthSeries(r, P, mode) {
+  const kit = modeKit(r, P, mode), g = r.geo, zs = g.t / 2 + P.standoff; const pts = [], flat = [];
+  const gf = C.geometry({ wx: g.wx, ly: g.ly, N: g.N, awg: g.awg, th: 0, b: g.b }, P); const Sf = C.buildSegs(gf, C.makeRings(gf, P.nRings, P.nLay), P);
+  const zsf = gf.t / 2 + P.standoff; const Bf = new Float64Array(6);
+  for (let d = 0; d <= 0.121; d += 0.004) {
+    pts.push([d * 100, Q.B(r.S, 0, 0, zs + d, kit) * 1e3]);
+    flat.push([d * 100, Q.B(Sf, 0, 0, zsf + d, kit) * 1e3]);
+  }
+  return { pts, flat };
+}
+function waveSeries(r, P, mode) {
+  const kit = modeKit(r, P, mode), W = kit.W, M = kit.M, res = kit.res, T = 1 / M.f; const n = 200, cur = [], volt = [];
+  const L = r.ind.L, Rt = res.Rhot + res.Rdrive;
+  for (let i = 0; i <= n; i++) {
+    const tau = i / n * 2, h = 1e-4; const g0 = W.g(tau), dg = (W.g(tau + h) - W.g(tau - h)) / (2 * h);
+    const t = tau * T * 1e3; cur.push([t, res.I * g0]); volt.push([t, res.I * (Rt * g0 + L * M.f * dg)]);
+  }
+  return { cur, volt, T };
+}
+function thermalSeries(r, P) {
+  const out = {};
+  for (const m of ['a', 'r']) {
+    const res = m === 'a' ? r.A : r.R, M = m === 'a' ? P.acute : P.recov, T = res.T;
+    const n = 60, c = [], s = []; for (let i = 0; i <= n; i++) { const t = i / n * M.tsess; c.push([t / 60, T.Tat(t)]); s.push([t / 60, T.skin(T.Tat(t))]); }
+    out[m] = { coil: c, skin: s };
+  }
+  return out;
+}
+
+/* ===================== part 3: state, solver manager, controls, read-out ===================== */
+const VAR = C.VARS, CN = C.CONS, NV = VAR.length;
+const CI = {}; CN.forEach((c, i) => CI[c.id] = i);
+C.SUPPLIES.bat24.Imax = 30; C.SUPPLIES.bat48.Imax = 30;
+
+const S = {
+  P: C.defaults(), lock: new Array(NV).fill(null), sol: null, x: null, r: null,
+  mode: 'a', tab: 'field', solving: false, solveMs: 0, panel: 'views',
+  plane: 'xz', q: 'B', slice: { i: 5, j: 0 }, sweep: { axis: 'Pcap', data: null, busy: false, stale: true }, supplyCmp: { data: null, busy: false, stale: true },
+  snap: null, supplyKey: 'bat24', showAll: false
+};
+S.P.supply = Object.assign({}, C.SUPPLIES.bat24);
+
+/* ---------- persistence (per-viewer convenience only) ---------- */
+const KEY = 'pemf-butterfly-v1';
+function saveState() { try { localStorage.setItem(KEY, JSON.stringify({ P: S.P, lock: S.lock, supplyKey: S.supplyKey }, (k, v) => v === Infinity ? '∞' : v)); } catch (e) { } }
+function loadState() {
+  try {
+    const t = localStorage.getItem(KEY); if (!t) return;
+    const o = JSON.parse(t, (k, v) => v === '∞' ? Infinity : v); if (!o || !o.P) return;
+    const def = C.defaults();
+    const merge = (a, b) => { for (const k in b) { if (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && a[k]) merge(a[k], b[k]); else if (k in a || k === 'Imax') a[k] = b[k]; } return a; };
+    S.P = merge(def, o.P); S.lock = Array.isArray(o.lock) && o.lock.length === NV ? o.lock : S.lock; S.supplyKey = o.supplyKey || S.supplyKey;
+  } catch (e) { }
+}
+const saveSoon = debounce(saveState, 400);
+
+/* ---------- solver manager (Web Worker with synchronous fallback) ---------- */
+const WORKER_GLUE = `
+function pack(r){return {u:r.u,x:r.x,lam:r.lam,kkt:r.kkt,evals:r.evals,trace:r.trace,atBound:r.atBound,g:r.r.g,Bpk:r.r.A.Bpk,Pcoil:r.r.A.Pcoil};}
+self.onmessage=function(e){var m=e.data;try{
+ if(m.type==='solve'){var res=PEMF.solve(m.P,m.opt);self.postMessage({id:m.id,type:'done',res:pack(res)});}
+ else if(m.type==='batch'){var prev=null;for(var k=0;k<m.jobs.length;k++){var j=m.jobs[k];var o=j.opt||{};if(j.warm&&prev){o.starts=[prev.u];o.lam0=prev.lam;}var res=PEMF.solve(j.P,o);prev=res;self.postMessage({id:m.id,type:'job',k:k,res:pack(res)});}self.postMessage({id:m.id,type:'done'});}
+}catch(err){self.postMessage({id:m.id,type:'error',msg:String(err)});}};`;
+class Runner {
+  constructor() { this.w = null; this.failed = false; this.seq = 0; this.cur = null; }
+  ensure() {
+    if (this.w || this.failed) return;
+    try {
+      const src = document.getElementById('core').textContent + '\n' + WORKER_GLUE;
+      this.url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+      this.w = new Worker(this.url);
+      this.w.onmessage = e => this.onMsg(e.data);
+      this.w.onerror = () => { this.failed = true; this.w = null; if (this.cur) { const c = this.cur; this.cur = null; this.fallback(c); } };
+    } catch (e) { this.failed = true; this.w = null; }
+  }
+  onMsg(m) {
+    const c = this.cur; if (!c || m.id !== c.id) return;
+    if (m.type === 'job') c.onJob && c.onJob(m.k, m.res);
+    else if (m.type === 'done') { this.cur = null; c.resolve(m.res); }
+    else if (m.type === 'error') { this.cur = null; c.reject(new Error(m.msg)); }
+  }
+  cancel() { if (this.cur) { const c = this.cur; this.cur = null; c.reject('cancelled'); if (this.w) { this.w.terminate(); this.w = null; } } }
+  start(msg, onJob) {
+    this.cancel(); this.ensure();
+    return new Promise((resolve, reject) => {
+      const id = ++this.seq; const c = { id, resolve, reject, onJob, msg }; this.cur = c; msg.id = id;
+      if (this.w) this.w.postMessage(msg); else this.fallback(c);
+    });
+  }
+  fallback(c) {                      // run on the main thread in small steps so the page stays alive
+    const msg = c.msg; this.cur = c;
+    setTimeout(() => {
+      try {
+        const pack = r => ({ u: r.u, x: r.x, lam: r.lam, kkt: r.kkt, evals: r.evals, trace: r.trace, atBound: r.atBound, g: r.r.g, Bpk: r.r.A.Bpk, Pcoil: r.r.A.Pcoil });
+        if (msg.type === 'solve') { const r = pack(C.solve(msg.P, msg.opt)); if (this.cur === c) { this.cur = null; c.resolve(r); } }
+        else { let prev = null; const jobs = msg.jobs; let k = 0;
+          const step = () => { if (this.cur !== c) return; if (k >= jobs.length) { this.cur = null; c.resolve(); return; }
+            const j = jobs[k], o = j.opt || {}; if (j.warm && prev) { o.starts = [prev.u]; o.lam0 = prev.lam; } const res = C.solve(j.P, o); prev = res; c.onJob && c.onJob(k, pack(res)); k++; setTimeout(step, 0); };
+          step(); }
+      } catch (e) { if (this.cur === c) { this.cur = null; c.reject(e); } }
+    }, 5);
+  }
+}
+const mainRunner = new Runner(), batchRunner = new Runner();
+function clonePSafe(P) { return JSON.parse(JSON.stringify(P, (k, v) => v === Infinity ? '∞' : v), (k, v) => v === '∞' ? Infinity : v); }
+function coldStarts(n) {
+  const base = [[0.55, 0.55, 0.45, 0.2, 0.4, 0.55, 0.5], [0.35, 0.35, 0.35, 0.5, 0.25, 0.4, 0.6], [0.8, 0.8, 0.5, 0.15, 0.45, 0.7, 0.4]];
+  return base.slice(0, n || 2);
+}
+let solveToken = 0;
+function solveNow(opts) {
+  opts = opts || {}; const token = ++solveToken; S.solving = true; renderStatus();
+  const t0 = performance.now();
+  const P = clonePSafe(S.P);
+  const starts = opts.global ? coldStarts(3).concat(S.sol ? [S.sol.u] : []) : (S.sol ? [S.sol.u] : coldStarts(2));
+  const opt = { lock: S.lock.slice(), starts, maxOuter: 10, maxInner: 80 };
+  if (S.sol && !opts.global) opt.lam0 = S.sol.lam;
+  mainRunner.start({ type: 'solve', P, opt }).then(sol => {
+    if (token !== solveToken) return;
+    S.solveMs = performance.now() - t0; S.sol = sol; S.x = sol.x.slice(); S.solving = false;
+    S.r = C.evaluate(S.x, S.P);
+    S.sweep.stale = true; S.supplyCmp.stale = true; S.snap = null; S.sliceStale = true;
+    renderAll();
+  }).catch(err => { if (err === 'cancelled') return; S.solving = false; S.error = String(err && err.message || err); renderStatus(); });
+}
+const solveSoon = debounce(solveNow, 150);
+function quickEval() { if (S.x) S.r = C.evaluate(S.x, S.P); }
+
+/* ---------- control schema ---------- */
+const WAVE_OPTS = Object.keys(C.WAVES).map(k => [k, C.WAVES[k].name]);
+const P_ = (path, scale) => ({
+  get: P => { const v = path.split('.').reduce((o, k) => o[k], P); return typeof v === 'number' ? v * scale : v; },
+  set: (P, v) => { const ks = path.split('.'); let o = P; for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]]; o[ks[ks.length - 1]] = scale === 1 ? v : v / scale; }
+});
+const SCHEMA = [
+  { sec: 'Target and objective', open: true, items: [
+    { id: 'objective', type: 'seg', label: 'Objective', opts: [['maxB', 'Maximize flux'], ['minP', 'Minimize heat']], ...P_('objective', 1), reflow: true, hint: 'Flux mode pushes B at the target as high as the limits allow. Heat mode fixes the flux you need and minimizes coil dissipation.' },
+    { id: 'BaReq', label: 'Required acute flux', unit: 'mT', min: 0.5, max: 20, step: 0.1, ...P_('BaReq', 1e3), show: P => P.objective === 'minP' },
+    { id: 'depth', label: 'Target depth below skin', unit: 'cm', min: 2, max: 12, step: 0.5, ...P_('depth', 100), hint: 'Skin to the disc and nerve root. Lumbar discs are commonly 5 to 8 cm deep.' },
+    { id: 'standoff', label: 'Cover and cushion thickness', unit: 'mm', min: 3, max: 30, step: 1, ...P_('standoff', 1e3) },
+    { id: 'Brec', label: 'Recovery-mode flux', unit: 'mT', min: 0.05, max: 5, step: 0.05, ...P_('recov.Bpk', 1e3), hint: 'Set directly. Recovery current follows from I = B / k_B.' }
+  ] },
+  { sec: 'Acute mode', open: true, items: [
+    { id: 'fa', label: 'Frequency', unit: 'Hz', min: 40, max: 200, step: 5, ...P_('acute.f', 1) },
+    { id: 'wa', type: 'select', label: 'Waveform', opts: WAVE_OPTS, ...P_('acute.wave', 1) },
+    { id: 'da', label: 'Burst duty', unit: '%', min: 10, max: 100, step: 5, ...P_('acute.duty', 100), hint: 'Fraction of time the coil is energized. Heat scales with duty, flux per pulse does not.' },
+    { id: 'ta', label: 'Session length', unit: 'min', min: 1, max: 60, step: 1, ...P_('acute.tsess', 1 / 60) }
+  ] },
+  { sec: 'Recovery mode', items: [
+    { id: 'fr', label: 'Frequency', unit: 'Hz', min: 5, max: 40, step: 1, ...P_('recov.f', 1) },
+    { id: 'wr', type: 'select', label: 'Waveform', opts: WAVE_OPTS, ...P_('recov.wave', 1) },
+    { id: 'dr', label: 'Burst duty', unit: '%', min: 10, max: 100, step: 5, ...P_('recov.duty', 100) },
+    { id: 'tr', label: 'Session length', unit: 'min', min: 5, max: 480, step: 5, ...P_('recov.tsess', 1 / 60) }
+  ] },
+  { sec: 'Power source', open: true, items: [
+    { id: 'supply', type: 'chips', label: 'Source', opts: [['wall12', '12 V wall'], ['wall24', '24 V wall'], ['bat24', '24 V pack'], ['bat48', '48 V pack'], ['custom', 'Custom']] },
+    { id: 'Voc', label: 'Open-circuit voltage', unit: 'V', min: 6, max: 60, step: 0.5, ...P_('supply.Voc', 1), after: 'pmax' },
+    { id: 'Rsrc', label: 'Source resistance', unit: 'mΩ', min: 5, max: 400, step: 5, ...P_('supply.Rsrc', 1e3), hint: 'Pack internal resistance plus cable and connector.' },
+    { id: 'Pmax', label: 'Supply rating', unit: 'W', min: 20, max: 800, step: 10, ...P_('supply.Pmax', 1), show: P => P.supply.kind === 'wall' },
+    { id: 'Imax', label: 'Pack continuous current', unit: 'A', min: 5, max: 80, step: 1, ...P_('supply.Imax', 1), show: P => P.supply.kind === 'battery', after: 'pmax' },
+    { id: 'capWh', label: 'Pack energy', unit: 'Wh', min: 20, max: 600, step: 10, ...P_('supply.capWh', 1), show: P => P.supply.kind === 'battery' },
+    { id: 'Rds', label: 'MOSFET on-resistance', unit: 'mΩ', min: 1, max: 60, step: 0.5, ...P_('drive.Rds', 1e3), hint: 'Per device. An H-bridge puts two in the current path.' },
+    { id: 'Isw', label: 'Switch current limit', unit: 'A', min: 10, max: 120, step: 5, ...P_('drive.Isw', 1) }
+  ] },
+  { sec: 'Heat and comfort', items: [
+    { id: 'Tmax', label: 'Coil temperature limit', unit: '°C', min: 35, max: 90, step: 1, ...P_('thermal.Tmax', 1) },
+    { id: 'Tskin', label: 'Skin temperature limit', unit: '°C', min: 36, max: 45, step: 0.5, ...P_('thermal.Tskin', 1), hint: 'Comfort margin. Medical-device practice allows about 43 °C for prolonged skin contact.' },
+    { id: 'Ta', label: 'Ambient', unit: '°C', min: 10, max: 35, step: 1, ...P_('thermal.Ta', 1) },
+    { id: 'hdn', label: 'Underside cooling', unit: 'W/m²K', min: 2, max: 15, step: 0.5, ...P_('thermal.hdn', 1), hint: 'About 6 in open air, 2 to 3 on a mattress.' },
+    { id: 'kc', label: 'Cover conductivity', unit: 'W/mK', min: 0.02, max: 0.5, step: 0.01, ...P_('thermal.kc', 1), hint: 'Foam 0.04, fabric 0.06, silicone 0.2.' },
+    { id: 'spread', label: 'Heat spreading', unit: '×', min: 1, max: 3, step: 0.1, ...P_('thermal.spread', 1), hint: 'Effective cooling area as a multiple of the winding band area.' },
+    { id: 'Cx', label: 'Former thermal mass', unit: 'J/m²K', min: 0, max: 10000, step: 250, ...P_('thermal.Cx', 1) },
+    { id: 'ht', label: 'Skin to core conductance', unit: 'W/m²K', min: 20, max: 100, step: 5, ...P_('thermal.ht', 1) }
+  ] },
+  { sec: 'Limits and budget', items: [
+    { id: 'Elim', label: 'Induced E-field limit', unit: 'V/m', min: 0.1, max: 5, step: 0.05, ...P_('Elim', 1), hint: 'ICNIRP 2010 reference for general public, all tissues, 1 Hz to 3 kHz: 0.4 V/m; occupational 0.8. Treatment devices can exceed it under clinical control.' },
+    { id: 'Pcap', type: 'togglenum', label: 'Heat budget (acute)', unit: 'W', min: 2, max: 150, step: 1, get: P => P.size.Pcap, set: (P, v) => P.size.Pcap = v },
+    { id: 'Wmax', label: 'Max width', unit: 'mm', min: 100, max: 600, step: 10, ...P_('size.Wmax', 1e3) },
+    { id: 'Lmax', label: 'Max length', unit: 'mm', min: 100, max: 500, step: 10, ...P_('size.Lmax', 1e3) },
+    { id: 'Hmax', label: 'Max profile height', unit: 'mm', min: 8, max: 80, step: 1, ...P_('size.Hmax', 1e3) },
+    { id: 'mmax', label: 'Max copper mass', unit: 'kg', min: 0.2, max: 6, step: 0.1, ...P_('size.mmax', 1) },
+    { id: 'price', label: 'Wire price', unit: '$/kg', min: 5, max: 40, step: 1, ...P_('price', 1) }
+  ] },
+  { sec: 'Winding assumptions', items: [
+    { id: 'gap', label: 'Gap between wings', unit: 'mm', min: 2, max: 30, step: 1, ...P_('gap', 1e3) },
+    { id: 'phi', label: 'Winding packing', unit: '', min: 0.6, max: 0.95, step: 0.01, ...P_('phi', 1), hint: 'Share of the winding window the insulated wire fills.' },
+    { id: 'rin', label: 'Inner clearance', unit: 'mm', min: 5, max: 40, step: 1, ...P_('rin', 1e3) }
+  ] }
+];
+const ITEM = {}; SCHEMA.forEach(s => s.items.forEach(it => ITEM[it.id] = it));
+const decOf = st => st >= 1 ? 0 : Math.min(3, Math.ceil(-Math.log10(st) - 1e-9));
+const openSec = {}; SCHEMA.forEach(s => openSec[s.sec] = !!s.open);
+
+function controlHTML(it) {
+  const P = S.P;
+  if (it.show && !it.show(P)) return '';
+  const v = it.get ? it.get(P) : null;
+  const hint = it.hint ? `<span class="hint" tabindex="0" aria-label="${esc(it.hint)}" data-tip="${esc(it.hint)}">i</span>` : '';
+  if (it.type === 'seg') return `<div class="ctl"><div class="cl">${esc(it.label)}${hint}</div><div class="seg" role="group">${it.opts.map(o => `<button type="button" data-seg="${it.id}" data-val="${o[0]}" aria-pressed="${v === o[0]}">${esc(o[1])}</button>`).join('')}</div></div>`;
+  if (it.type === 'chips') return `<div class="ctl"><div class="cl">${esc(it.label)}</div><div class="chips" role="group">${it.opts.map(o => `<button type="button" data-chip="${o[0]}" aria-pressed="${S.supplyKey === o[0]}">${esc(o[1])}</button>`).join('')}</div></div>`;
+  if (it.type === 'select') return `<div class="ctl"><label class="cl" for="in_${it.id}">${esc(it.label)}</label><select id="in_${it.id}" data-sel="${it.id}">${it.opts.map(o => `<option value="${o[0]}"${o[0] === v ? ' selected' : ''}>${esc(o[1])}</option>`).join('')}</select></div>`;
+  if (it.type === 'togglenum') {
+    const on = isFinite(v), val = on ? v : 40;
+    return `<div class="ctl"><div class="cl"><label class="chk"><input type="checkbox" id="tg_${it.id}" data-tog="${it.id}"${on ? ' checked' : ''}> ${esc(it.label)}</label><span class="u">${esc(it.unit)}</span></div><div class="ci"><input type="range" id="rg_${it.id}" data-rg="${it.id}" min="${it.min}" max="${it.max}" step="${it.step}" value="${val}"${on ? '' : ' disabled'}><input type="number" id="in_${it.id}" data-num="${it.id}" min="${it.min}" max="${it.max}" step="${it.step}" value="${val}"${on ? '' : ' disabled'}></div></div>`;
+  }
+  const d = decOf(it.step), shown = Number(v).toFixed(d);
+  return `<div class="ctl"><label class="cl" for="in_${it.id}">${esc(it.label)}${hint}<span class="u">${esc(it.unit)}</span></label><div class="ci"><input type="range" id="rg_${it.id}" data-rg="${it.id}" min="${it.min}" max="${it.max}" step="${it.step}" value="${clamp(v, it.min, it.max)}"><input type="number" id="in_${it.id}" data-num="${it.id}" min="${it.min}" max="${it.max}" step="${it.step}" value="${shown}"></div></div>`;
+}
+function renderControls() {
+  const host = $('#problem'); const scroll = host.scrollTop;
+  host.innerHTML = '<h2 class="ph">Problem</h2>' + SCHEMA.map(s => `<details class="sec" data-sec="${esc(s.sec)}"${openSec[s.sec] ? ' open' : ''}><summary>${esc(s.sec)}</summary><div class="secbody">${s.items.map(controlHTML).join('')}</div></details>`).join('') +
+    '<div class="ph-foot"><button type="button" id="resetBtn" class="btn ghost">Reset all to defaults</button></div>';
+  host.scrollTop = scroll;
+}
+function syncSupplyKey() {
+  const s = S.P.supply; let key = 'custom';
+  for (const k in C.SUPPLIES) { const c = C.SUPPLIES[k]; if (c.kind === s.kind && c.Voc === s.Voc && c.Rsrc === s.Rsrc && c.Pmax === s.Pmax && c.capWh === s.capWh) key = k; }
+  S.supplyKey = key;
+}
+function applyParam(id, disp) {
+  const it = ITEM[id]; it.set(S.P, disp);
+  if (id === 'Imax') S.P.supply.Pmax = S.P.supply.Voc * S.P.supply.Imax;
+  if (id === 'Voc' && S.P.supply.kind === 'battery') S.P.supply.Pmax = S.P.supply.Voc * (S.P.supply.Imax || 30);
+  if (['Voc', 'Rsrc', 'Pmax', 'capWh', 'Imax'].includes(id)) { S.supplyKey = 'custom'; $$('#problem [data-chip]').forEach(b => b.setAttribute('aria-pressed', b.dataset.chip === 'custom')); }
+  if (id === 'Voc' || id === 'Imax') { const pm = $('#in_Pmax'); if (pm) pm.value = S.P.supply.Pmax; }
+  quickEval(); renderAll(true); solveSoon(); saveSoon();
+}
+function wireControls() {
+  const host = $('#problem');
+  host.addEventListener('input', e => {
+    const t = e.target, id = t.dataset.rg || t.dataset.num; if (!id) return;
+    const it = ITEM[id]; let v = parseFloat(t.value); if (!isFinite(v)) return;
+    const other = t.dataset.rg ? $('#in_' + id) : $('#rg_' + id);
+    if (t.dataset.rg) { if (other) other.value = Number(v).toFixed(decOf(it.step)); }
+    else if (other) other.value = clamp(v, it.min, it.max);
+    applyParam(id, clamp(v, it.min * 0.2, it.max * 5));
+  });
+  host.addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.sel) { applyParam(t.dataset.sel, t.value); renderControls(); }
+    else if (t.dataset.tog) { const id = t.dataset.tog, it = ITEM[id]; if (t.checked) applyParam(id, parseFloat($('#in_' + id).value) || 40); else applyParam(id, Infinity); renderControls(); }
+  });
+  host.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.seg) { applyParam(b.dataset.seg, b.dataset.val); renderControls(); }
+    else if (b.dataset.chip) {
+      const k = b.dataset.chip; if (k !== 'custom') { const keep = S.P.supply; S.P.supply = Object.assign({}, C.SUPPLIES[k]); S.supplyKey = k; quickEval(); renderControls(); renderAll(true); solveSoon(); saveSoon(); }
+      else { S.supplyKey = 'custom'; renderControls(); }
+    } else if (b.id === 'resetBtn') { S.P = C.defaults(); S.P.supply = Object.assign({}, C.SUPPLIES.bat24); S.supplyKey = 'bat24'; S.lock.fill(null); renderControls(); solveNow({ global: true }); saveSoon(); }
+  });
+  host.addEventListener('toggle', e => { const d = e.target; if (d.dataset && d.dataset.sec) openSec[d.dataset.sec] = d.open; }, true);
+}
+
+/* ---------- read-out strip, status ---------- */
+function stClass(g) { return g > 1e-3 ? 'over' : g > -0.03 ? 'bind' : ''; }
+function renderStatus() {
+  const el = $('#status'); if (!el) return;
+  const s = S.sol; let html;
+  if (S.error) html = `<span class="chip bad">Solver error</span>`;
+  else if (S.solving) html = `<span class="chip busy"><i class="spin"></i>Solving</span>`;
+  else if (s && s.kkt.viol > 5e-3) html = `<span class="chip bad" title="Largest constraint violation at the best point found">No feasible design · worst limit over by ${fx(s.kkt.viol * 100, 0)}%</span>`;
+  else if (s) html = `<span class="chip ok" title="Stationarity residual ${s.kkt.stat.toExponential(1)}, worst violation ${s.kkt.viol.toExponential(1)}, complementarity ${s.kkt.comp.toExponential(1)}">KKT satisfied · ${fx(S.solveMs / 1000, 1)} s</span>`;
+  else html = '<span class="chip busy"><i class="spin"></i>Starting</span>';
+  el.innerHTML = html;
+}
+function limitedBy() {
+  if (!S.sol) return '';
+  const lam = S.sol.lam, act = CN.map((c, i) => ({ c, i, l: lam[i] })).filter(o => o.l > 1e-3 && !(S.P.objective !== 'minP' && o.c.id === 'Breq')).sort((a, b) => b.l - a.l).slice(0, 3);
+  const bounds = S.sol.atBound.map((b, i) => (b === 'lo' || b === 'hi') ? VAR[i].label.toLowerCase() + (b === 'lo' ? ' at minimum' : ' at maximum') : null).filter(Boolean);
+  if (!act.length && !bounds.length) return 'No limit is binding: the design is set by the variable ranges.';
+  return 'Held back by ' + act.map(o => `<b>${esc(o.c.label.toLowerCase())}</b>`).join(', ') + (bounds.length ? '; ' + bounds.slice(0, 2).join(', ') : '');
+}
+function renderReadout() {
+  const r = S.r, P = S.P, m = S.mode, res = m === 'a' ? r.A : r.R, M = m === 'a' ? P.acute : P.recov;
+  const gi = (a, b) => r.g[m === 'a' ? CI[a] : CI[b]];
+  const wname = C.WAVES[M.wave].name.split(' (')[0].toLowerCase();
+  const cells = [
+    { k: 'Flux at target', v: fx(res.Bpk * 1e3, 2), u: 'mT', sub: `peak, ${fx(P.depth * 100, 1)} cm deep`, big: 1 },
+    { k: 'Coil current', v: fx(res.I, 1), u: 'A', sub: `${wname}, rms ${fx(res.Irms, 1)} A`, cls: stClass(r.g[m === 'a' ? CI.I_a : CI.I_r]) },
+    { k: 'Induced E at skin', v: fx(res.Epk, 2), u: 'V/m', sub: `reference ${fx(P.Elim, 2)}`, cls: stClass(gi('E_a', 'E_r')) },
+    { k: 'Coil temperature', v: fx(res.T.Tend, 0), u: '°C', sub: `after ${fx(M.tsess / 60, 0)} min, limit ${fx(P.thermal.Tmax, 0)}`, cls: stClass(gi('Tc_a', 'Tc_r')) },
+    { k: 'Skin temperature', v: fx(res.T.Ts, 1), u: '°C', sub: `limit ${fx(P.thermal.Tskin, 1)}`, cls: stClass(gi('Ts_a', 'Ts_r')) },
+    { k: 'Drive voltage', v: fx(res.Vreq, 1), u: 'V', sub: `of ${fx(res.Vav, 1)} V available`, cls: stClass(gi('V_a', 'V_r')) },
+    { k: 'Coil heat', v: fx(res.Pcoil, 1), u: 'W', sub: `${fx(res.Pin, 0)} W from source`, cls: stClass(gi('P_a', 'P_r')) }
+  ];
+  const html = cells.map(c => `<div class="kpi ${c.big ? 'big' : ''} ${c.cls || ''}"><div class="kk">${esc(c.k)}</div><div class="kv">${c.v}<span>${esc(c.u)}</span></div><div class="ks">${c.cls === 'over' ? '<b class="tag">over limit</b> ' : c.cls === 'bind' ? '<b class="tag">at limit</b> ' : ''}${esc(c.sub)}</div></div>`).join('');
+  $('#kpis').innerHTML = html; $('#limitedby').innerHTML = limitedBy();
+  $$('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === m));
+  $('#modeSeg [data-m=a]').textContent = `Acute ${P.acute.f} Hz`; $('#modeSeg [data-m=r]').textContent = `Recovery ${P.recov.f} Hz`;
+}
+
+/* ===================== part 4: tabs (field, optimum, lagrangian) ===================== */
+const card = (title, body, cls, sub) => `<section class="card ${cls || ''}">${title ? `<h3>${title}</h3>` : ''}${sub ? `<p class="note">${sub}</p>` : ''}${body}</section>`;
+const modeColor = () => cssVar(S.mode === 'a' ? '--c1' : '--c2');
+const CAT = ['--c1', '--c2', '--c3', '--c4', '--c5', '--c6', '--c7', '--c8'];
+const LOCK_SVG = '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor"/><path d="M5.2 7V5a2.8 2.8 0 0 1 5.6 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+const UNLOCK_SVG = '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.2 7V5a2.8 2.8 0 0 1 5.4-1" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+const TABS = {};
+
+/* ---------------- field tab ---------------- */
+TABS.field = {
+  build(h) {
+    h.innerHTML = `
+      <div class="toolrow"><div class="seg" id="planeSeg" role="group" aria-label="Plane">
+        <button type="button" data-p="xz">Across spine</button><button type="button" data-p="yz">Along spine</button><button type="button" data-p="xy">At target depth</button><button type="button" data-p="skin">Skin surface</button></div>
+        <div class="seg" id="qSeg" role="group" aria-label="Quantity"><button type="button" data-q="B">Flux density</button><button type="button" data-q="E">Induced E-field</button></div></div>
+      <section class="card"><p class="note" id="mapCap"></p><div class="mapwrap" id="mapwrap"><canvas id="mapC" role="img" aria-label="Field map"></canvas><div class="maptip" id="mapTip" hidden></div></div><div id="cbar"></div></section>
+      <div class="grid2">
+        ${card('Flux versus depth', '<div id="chDepth"></div><p class="note" id="depthNote"></p>')}
+        ${card('Temperature during the session', '<div id="chTherm"></div><p class="note" id="thermNote"></p>')}
+        ${card('Coil current', '<div id="chCur"></div>')}
+        ${card('Terminal voltage', '<div id="chVolt"></div><p class="note" id="voltNote"></p>')}
+      </div>`;
+    this.ch = { depth: new LineChart($('#chDepth'), { height: 200 }), therm: new LineChart($('#chTherm'), { height: 200 }), cur: new LineChart($('#chCur'), { height: 170 }), volt: new LineChart($('#chVolt'), { height: 170 }) };
+    $('#planeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.plane = b.dataset.p; this.update(); } });
+    $('#qSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.q = b.dataset.q; this.update(); } });
+    const cv = $('#mapC'), tip = $('#mapTip');
+    const mv = ev => {
+      if (!this.info) return; const rc = cv.getBoundingClientRect(), info = this.info, sp = info.spec;
+      const a = sp.x0 + (ev.clientX - rc.left) / rc.width * (sp.x1 - sp.x0), b = sp.y1 - (ev.clientY - rc.top) / rc.height * (sp.y1 - sp.y0);
+      const v = info.fn(a, b); const unit = info.q === 'B' ? eng(v, 'T', 3) : sig(v, 3) + ' V/m';
+      tip.innerHTML = `<b>${unit}</b><span>${sp.ax} ${fx(a * 100, 1)} cm · ${sp.ay} ${fx(b * 100, 1)} cm</span>`; tip.hidden = false;
+      tip.style.left = clamp(ev.clientX - rc.left + 12, 0, rc.width - tip.offsetWidth - 2) + 'px'; tip.style.top = clamp(ev.clientY - rc.top - 34, 0, rc.height - 36) + 'px';
+    };
+    cv.addEventListener('pointermove', mv); cv.addEventListener('pointerdown', mv); cv.addEventListener('pointerleave', () => { tip.hidden = true; });
+  },
+  update() {
+    const r = S.r, P = S.P, m = S.mode, res = m === 'a' ? r.A : r.R, M = m === 'a' ? P.acute : P.recov;
+    $$('#planeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.p === S.plane));
+    $$('#qSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.q === S.q));
+    const info = drawFieldMap($('#mapC'), r, P, { plane: S.plane, q: S.q, mode: m }); this.info = info;
+    $('#cbar').innerHTML = colorbarHTML(info, { v: S.q === 'B' ? res.Bpk : P.Elim, label: S.q === 'B' ? 'flux at target' : 'E limit' });
+    $('#mapCap').innerHTML = `${esc(PLANE_INFO[S.plane])}. ${S.q === 'B' ? 'Peak flux density' : 'Peak induced E-field (E = −∂A/∂t)'} for the <b>${m === 'a' ? 'acute' : 'recovery'}</b> setting (${fx(res.I, 1)} A, ${M.f} Hz). Ring marks the target; distances in cm.`;
+    const c = modeColor(), mutedC = cssVar('--muted');
+    const ds = depthSeries(r, P, m); const tgt = ds.pts.reduce((a, p) => Math.abs(p[0] - P.depth * 100) < Math.abs(a[0] - P.depth * 100) ? p : a, ds.pts[0]), tf = ds.flat.reduce((a, p) => Math.abs(p[0] - P.depth * 100) < Math.abs(a[0] - P.depth * 100) ? p : a, ds.flat[0]);
+    this.ch.depth.set({ series: [{ name: `Bent ${fx(r.geo.th * 180 / Math.PI, 1)}°`, color: c, pts: ds.pts, area: true }, { name: 'Same coil, flat', color: mutedC, dash: '5 4', pts: ds.flat, w: 1.6 }], markers: [{ x: P.depth * 100, y: res.Bpk * 1e3, color: cssVar('--ink') }], xLabel: 'cm below skin', yLabel: 'mT', yUnit: 'mT', xUnit: 'cm' });
+    const gain = (tgt[1] / tf[1] - 1) * 100;
+    $('#depthNote').innerHTML = Math.abs(r.geo.th) < 0.004 ? 'The wings are flat. Bending them toward the body usually raises flux at depth.' : `At the target, bending the wings ${gain >= 0 ? 'raises' : 'lowers'} flux by <b>${fx(Math.abs(gain), 0)}%</b> compared with the same coil laid flat.`;
+    const ts = thermalSeries(r, P);
+    this.ch.therm.set({
+      series: [{ name: 'Acute, coil', color: cssVar('--c1'), pts: ts.a.coil }, { name: 'Acute, skin', color: cssVar('--c1'), dash: '5 4', pts: ts.a.skin }, { name: 'Recovery, coil', color: cssVar('--c2'), pts: ts.r.coil }, { name: 'Recovery, skin', color: cssVar('--c2'), dash: '5 4', pts: ts.r.skin }],
+      hlines: [{ y: P.thermal.Tmax, label: 'coil limit' }, { y: P.thermal.Tskin, label: 'skin limit' }], yZero: false, xLabel: 'minutes', yLabel: '°C', yUnit: '°C', xUnit: 'min', fmtX: v => v.toFixed(v < 10 ? 1 : 0)
+    });
+    const T = res.T; $('#thermNote').innerHTML = `Time constant <b>${isFinite(T.tau) ? fx(T.tau / 60, 0) + ' min' : 'runaway'}</b>, steady state ${isFinite(T.Tss) ? fx(T.Tss, 0) + ' °C' : 'not reached'}. ${T.runaway ? 'Copper resistance rises faster than the coil can shed heat.' : ''}`;
+    const w = waveSeries(r, P, m);
+    this.ch.cur.set({ series: [{ name: m === 'a' ? 'Acute i(t)' : 'Recovery i(t)', color: c, pts: w.cur }], hlines: [{ y: P.drive.Isw, label: 'switch limit' }, { y: -P.drive.Isw, label: '' }], yZero: false, xLabel: 'ms', yLabel: 'A', yUnit: 'A', xUnit: 'ms', fmtX: v => v.toFixed(v < 20 ? 1 : 0) });
+    this.ch.volt.set({ series: [{ name: 'v(t) = R i + L di/dt', color: c, pts: w.volt }], hlines: [{ y: res.Vav, label: 'available' }, { y: -res.Vav, label: '' }], yZero: false, xLabel: 'ms', yLabel: 'V', yUnit: 'V', xUnit: 'ms', fmtX: v => v.toFixed(v < 20 ? 1 : 0) });
+    $('#voltNote').innerHTML = `Needs <b>${fx(res.Vreq, 1)} V</b> peak of <b>${fx(res.Vav, 1)} V</b> available (${fx(P.drive.Dmax * 100, 0)}% max duty, ${fx(P.supply.Voc, 0)} V source, sag at ${fx(res.Ibus, 1)} A). Inductance ${fx(r.ind.L * 1e6, 0)} µH, resistance ${fx(res.Rhot * 1e3, 0)} mΩ hot.`;
+  }
+};
+
+/* ---------------- optimum tab ---------------- */
+const STEP = { Tc_a: [1, '°C', 1], Ts_a: [1, '°C', 1], Tc_r: [1, '°C', 1], Ts_r: [0.5, '°C', 1], E_a: [0.1, 'V/m', 1], E_r: [0.1, 'V/m', 1], V_a: [1, 'V', 1], V_r: [1, 'V', 1], P_a: [10, 'W', 1], P_r: [10, 'W', 1], I_a: [5, 'A', 1], I_r: [5, 'A', 1], W: [10, 'mm', 1e-3], Ln: [10, 'mm', 1e-3], H: [1, 'mm', 1e-3], mCu: [0.1, 'kg', 1], Pcap: [1, 'W', 1], Eb_a: [10, 'Wh', 1], Eb_r: [10, 'Wh', 1], Breq: [1, 'mT', 1e-3] };
+function shadow(i) {
+  const c = CN[i], lam = S.sol ? S.sol.lam[i] : 0; if (!(lam > 1e-4) || !STEP[c.id]) return '';
+  const [step, unit, si] = STEP[c.id], scl = S.r.scl[i], minP = S.P.objective === 'minP';
+  if (c.id === 'Breq') return minP ? `+${fx(10 * lam / S.P.BaReq * step * si, 2)} W per +${step} ${unit}` : '';
+  if (minP) return `−${fx(10 * lam / scl * step * si, 2)} W per +${step} ${unit}`;
+  return `+${fx(1e-3 * lam / scl * step * si * 1e3, 3)} mT per +${step} ${unit}`;
+}
+function fillFrac(i) {
+  const c = CN[i], r = S.r, v = r.val[i], l = r.lim[i], Ta = S.P.thermal.Ta;
+  if (!isFinite(l)) return 0;
+  if (c.id.startsWith('Tc_') || c.id.startsWith('Ts_')) return (v - Ta) / (l - Ta);
+  if (c.id === 'Breq') return l > 0 ? l / v : 0;
+  return v / l;
+}
+function fmtVal(i) {
+  const c = CN[i], v = S.r.val[i], l = S.r.lim[i];
+  const u = x => c.unit === 'mm' ? fx(x * 1e3, 0) : c.unit === 'mT' ? fx(x * 1e3, 2) : c.unit === 'kg' ? fx(x, 2) : c.unit === '°C' ? fx(x, 1) : c.unit === 'V/m' ? fx(x, 2) : c.unit === '' ? fx(x, 0) : fx(x, 1);
+  if (c.id === 'bw' || c.id === 'bl') return `band ${fx(v * 1e3, 0)} of ${fx(l * 1e3, 0)} mm`;
+  return `${u(v)} / ${isFinite(l) ? u(l) : '∞'} ${c.unit}`;
+}
+TABS.opt = {
+  build(h) {
+    h.innerHTML = card('Design variables', '<div id="vars"></div><div class="btnrow"><button type="button" class="btn ghost" id="relBtn">Release all holds</button><button type="button" class="btn" id="globBtn">Search from several starts</button></div>',
+      '', 'Drag a slider to hold that variable. The solver re-optimizes everything else around it. A padlock marks a held value.') +
+      card('Constraint ledger', '<div id="ledger"></div><label class="chk sm"><input type="checkbox" id="showAll"> Show slack constraints</label>', '', 'Each limit is a constraint g ≤ 0. The multiplier λ is its price: how much the objective improves per unit the limit is relaxed.') +
+      card('Optimality check', '<div id="kktBox"></div>');
+    $('#vars').innerHTML = VAR.map((v, i) => `<div class="vrow" data-i="${i}"><div class="vname"><label for="vs${i}">${esc(v.label)}</label><small id="vb${i}"></small></div><div class="vsl"><input type="range" id="vs${i}" data-v="${i}" min="0" max="1000" step="1"><div class="vend"><span>${fx(v.lo * v.sc, v.dec)}</span><span>${fx(v.hi * v.sc, v.dec)} ${esc(v.unit)}</span></div></div><div class="vval"><b id="vv${i}"></b> <span>${esc(v.unit)}</span></div><button type="button" class="lockb" data-lock="${i}" aria-pressed="false" aria-label="Hold ${esc(v.label)}"></button></div>`).join('');
+    $('#vars').addEventListener('input', e => {
+      const t = e.target; if (t.dataset.v == null) return; const i = +t.dataset.v, u = C.toU(S.x).slice(); u[i] = +t.value / 1000; const x = C.toX(u);
+      S.lock[i] = x[i]; S.x[i] = x[i]; quickEval(); this.paintVars(i); renderReadout(); this.paintLedger(); this.paintKkt(); solveSoon(); saveSoon();
+    });
+    $('#vars').addEventListener('click', e => {
+      const b = e.target.closest('[data-lock]'); if (!b) return; const i = +b.dataset.lock;
+      S.lock[i] = S.lock[i] == null ? S.x[i] : null; this.paintVars(); solveSoon(); saveSoon();
+    });
+    $('#relBtn').addEventListener('click', () => { S.lock.fill(null); this.paintVars(); solveNow(); saveSoon(); });
+    $('#globBtn').addEventListener('click', () => solveNow({ global: true }));
+    $('#showAll').addEventListener('change', e => { S.showAll = e.target.checked; this.paintLedger(); });
+  },
+  paintVars(skip) {
+    const u = C.toU(S.x);
+    VAR.forEach((v, i) => {
+      const sl = $('#vs' + i); if (i !== skip && document.activeElement !== sl) sl.value = Math.round(clamp(u[i], 0, 1) * 1000);
+      $('#vv' + i).textContent = fx(S.x[i] * v.sc, v.dec);
+      const locked = S.lock[i] != null, bnd = S.sol ? S.sol.atBound[i] : '';
+      const lb = $(`[data-lock="${i}"]`); lb.setAttribute('aria-pressed', locked); lb.innerHTML = locked ? LOCK_SVG : UNLOCK_SVG; lb.title = locked ? 'Held. Click to let the solver choose.' : 'Free. Click to hold the current value.';
+      const note = locked ? 'held by you' : bnd === 'lo' ? 'at its lower bound' : bnd === 'hi' ? 'at its upper bound' : 'chosen by solver';
+      const el = $('#vb' + i); el.textContent = note; el.className = locked ? 'held' : bnd ? 'atb' : '';
+    });
+  },
+  paintLedger() {
+    const rows = CN.map((c, i) => ({ c, i, l: S.sol ? S.sol.lam[i] : 0, f: fillFrac(i) })).filter(o => isFinite(S.r.lim[o.i]) && !(o.c.id === 'Breq' && S.P.objective !== 'minP'));
+    rows.sort((a, b) => (b.l > 1e-3) - (a.l > 1e-3) || b.f - a.f);
+    const shown = rows.filter(o => S.showAll || o.l > 1e-3 || o.f > 0.6 || S.r.g[o.i] > 1e-3);
+    $('#ledger').innerHTML = shown.map(o => {
+      const gv = S.r.g[o.i], over = gv > 1e-3, act = o.l > 1e-3 || gv > -0.01; const f = clamp(o.f, 0, 1.25);
+      const sh = shadow(o.i);
+      return `<div class="lrow ${over ? 'over' : act ? 'act' : ''}"><div class="ln"><span>${esc(o.c.label)}</span><em>${over ? '<b class="tag">over</b>' : act ? '<b class="tag">binding</b>' : ''}</em></div><div class="lb"><div class="bar"><i style="width:${(f / 1.25 * 100).toFixed(1)}%"></i><u style="left:${(1 / 1.25 * 100).toFixed(1)}%"></u></div></div><div class="lv">${esc(fmtVal(o.i))}</div><div class="ll">${o.l > 1e-3 ? `<span class="lam">λ ${o.l < 10 ? o.l.toFixed(3) : o.l.toFixed(1)}</span>${sh ? `<span class="sh">${esc(sh)}</span>` : ''}` : '<span class="mut">slack</span>'}</div></div>`;
+    }).join('') || '<p class="note">Nothing is near a limit.</p>';
+  },
+  paintKkt() {
+    const s = S.sol; if (!s) { $('#kktBox').innerHTML = ''; return; }
+    const act = CN.map((c, i) => ({ c, l: s.lam[i] })).filter(o => o.l > 1e-3), tr = s.trace || [];
+    const held = S.lock.filter(v => v != null).length;
+    $('#kktBox').innerHTML = `<div class="kgrid">
+      <div><span>Stationarity ‖∇ₓℒ‖</span><b>${s.kkt.stat.toExponential(1)}</b></div>
+      <div><span>Worst constraint violation</span><b>${s.kkt.viol.toExponential(1)}</b></div>
+      <div><span>Complementarity max |λ·g|</span><b>${s.kkt.comp.toExponential(1)}</b></div>
+      <div><span>Active constraints</span><b>${act.length}</b></div>
+      <div><span>Model evaluations</span><b>${s.evals}</b></div>
+      <div><span>Multiplier iterations</span><b>${tr.length}</b></div></div>
+      <p class="note">${held ? `${held} variable${held > 1 ? 's are' : ' is'} held, so this is the best design with those values fixed. ` : ''}${S.P.objective === 'minP' ? 'Heat mode: objective is coil dissipation.' : 'Flux mode: objective is −B at the target.'} When the stationarity residual is near zero, the objective gradient is exactly balanced by the multiplier-weighted constraint gradients: ∇f + Σ λᵢ ∇gᵢ = 0.</p>`;
+  },
+  update() { this.paintVars(); this.paintLedger(); this.paintKkt(); }
+};
+
+/* ---------------- Lagrangian slice tab ---------------- */
+function sliceCompute() {
+  const tok = ++sliceTok, n = 34, i = S.slice.i, j = S.slice.j, u0 = C.toU(S.x), m = CN.length;
+  const data = { n, i, j, val: new Float64Array(n * n), G: new Float64Array(n * n * m), done: 0 }; S.sliceData = data;
+  let row = 0;
+  const step = () => {
+    if (tok !== sliceTok) return;
+    const t0 = performance.now();
+    while (row < n && performance.now() - t0 < 14) {
+      for (let a = 0; a < n; a++) {
+        const u = u0.slice(); u[i] = (a + 0.5) / n; u[j] = (row + 0.5) / n; const r = C.evaluate(C.toX(u), S.P);
+        data.val[row * n + a] = S.P.objective === 'minP' ? r.A.Pcoil : r.A.Bpk * 1e3;
+        for (let k = 0; k < m; k++) data.G[(row * n + a) * m + k] = r.g[k];
+      }
+      row++;
+    }
+    data.done = row; TABS.lag.paintSlice();
+    if (row < n) setTimeout(step, 0);
+  };
+  step();
+}
+let sliceTok = 0;
+TABS.lag = {
+  build(h) {
+    const opts = VAR.map((v, i) => `<option value="${i}">${esc(v.label)}</option>`).join('');
+    h.innerHTML = card('Constraint landscape', `<div class="toolrow"><label class="sel">Horizontal<select id="slI">${opts}</select></label><label class="sel">Vertical<select id="slJ">${opts}</select></label></div>
+      <div class="mapwrap sq" id="slwrap"><canvas id="slC" role="img" aria-label="Objective landscape with constraint boundaries"></canvas><div class="maptip" id="slTip" hidden></div></div><div id="slLegend" class="slleg"></div><p class="note" id="slNote"></p>`,
+      '', 'A two-variable slice through the design space, all other variables at their current values. Colour is the objective; hatched area breaks at least one limit; each line is one limit being exactly met.') +
+      `<div class="grid2">${card('Force balance at the optimum', '<div id="forceBox"></div>', '', 'The two arrows are ∇B (the pull of the objective) and Σ λᵢ ∇gᵢ (the push of the active limits) projected onto this slice. At a true optimum they are equal and opposite.')}
+      ${card('How the multipliers converged', '<div id="chConv"></div><div id="chConv2"></div>', '', 'Each point is one outer iteration of the augmented Lagrangian: λ is updated, the penalty grows if needed, and the violation falls toward zero.')}</div>
+      ${card('Lagrangian at the solution', '<div id="lagBox"></div>')}`;
+    $('#slI').value = S.slice.i; $('#slJ').value = S.slice.j;
+    const ch = () => { S.slice.i = +$('#slI').value; S.slice.j = +$('#slJ').value; if (S.slice.i === S.slice.j) { S.slice.j = (S.slice.i + 1) % NV; $('#slJ').value = S.slice.j; } sliceCompute(); };
+    $('#slI').addEventListener('change', ch); $('#slJ').addEventListener('change', ch);
+    this.conv = [new LineChart($('#chConv'), { height: 150 }), new LineChart($('#chConv2'), { height: 150 })];
+    const cv = $('#slC'), tip = $('#slTip');
+    const pos = ev => { const rc = cv.getBoundingClientRect(); return [clamp((ev.clientX - rc.left) / rc.width, 0, 1), clamp(1 - (ev.clientY - rc.top) / rc.height, 0, 1), rc]; };
+    cv.addEventListener('pointermove', ev => {
+      const [a, b, rc] = pos(ev), u = C.toU(S.x).slice(); u[S.slice.i] = a; u[S.slice.j] = b; const x = C.toX(u), vi = VAR[S.slice.i], vj = VAR[S.slice.j];
+      tip.innerHTML = `<b>${fx(x[S.slice.i] * vi.sc, vi.dec)} ${esc(vi.unit)} · ${fx(x[S.slice.j] * vj.sc, vj.dec)} ${esc(vj.unit)}</b><span>click to hold both</span>`; tip.hidden = false;
+      tip.style.left = clamp(ev.clientX - rc.left + 12, 0, rc.width - tip.offsetWidth - 2) + 'px'; tip.style.top = clamp(ev.clientY - rc.top - 34, 0, rc.height - 36) + 'px';
+    });
+    cv.addEventListener('pointerleave', () => { tip.hidden = true; });
+    cv.addEventListener('click', ev => {
+      const [a, b] = pos(ev), u = C.toU(S.x).slice(); u[S.slice.i] = a; u[S.slice.j] = b; const x = C.toX(u);
+      S.lock[S.slice.i] = x[S.slice.i]; S.lock[S.slice.j] = x[S.slice.j]; S.x[S.slice.i] = x[S.slice.i]; S.x[S.slice.j] = x[S.slice.j]; quickEval(); renderReadout(); this.update(true); solveSoon(); saveSoon();
+    });
+  },
+  update(keep) {
+    if (!keep || !S.sliceData || S.sliceStale) { S.sliceStale = false; sliceCompute(); } else this.paintSlice();
+    this.paintSide();
+  },
+  tracked() {
+    const lam = S.sol ? S.sol.lam : [], out = [];
+    CN.forEach((c, i) => { if (c.id === 'Breq' && S.P.objective !== 'minP') return; const l = lam[i] || 0; if (l > 1e-3 || (S.r.g[i] > -0.3 && S.r.g[i] < 0.3 && isFinite(S.r.lim[i]))) out.push({ i, l }); });
+    out.sort((a, b) => b.l - a.l || Math.abs(S.r.g[a.i]) - Math.abs(S.r.g[b.i])); return out.slice(0, 6);
+  },
+  paintSlice() {
+    const d = S.sliceData, cv = $('#slC'); if (!d || !cv) return;
+    const wrap = $('#slwrap'), W = Math.max(260, Math.min(wrap.clientWidth, 560)), dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.style.width = W + 'px'; cv.style.height = W * 0.8 + 'px'; cv.width = Math.round(W * dpr); cv.height = Math.round(W * 0.8 * dpr);
+    const H = W * 0.8, ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const n = d.n, m = CN.length, dark = isDark(), surf = cssVar('--surface'), ink = cssVar('--ink'), muted = cssVar('--muted');
+    let vmin = Infinity, vmax = -Infinity; const rows = d.done;
+    for (let k = 0; k < rows * n; k++) { const v = d.val[k]; if (v < vmin) vmin = v; if (v > vmax) vmax = v; }
+    if (!(vmax > vmin)) { vmin = 0; vmax = 1; }
+    const minP = S.P.objective === 'minP';
+    const img = new ImageData(n, n), mask = new ImageData(n, n);
+    for (let jj = 0; jj < n; jj++) for (let a = 0; a < n; a++) {
+      const row = n - 1 - jj, k = row * n + a, o = (jj * n + a) * 4; const done = row < rows;
+      let t = done ? (d.val[k] - vmin) / (vmax - vmin) : 0.5; if (minP) t = 1 - t;
+      const c = rampColor(done ? t : 0.5, dark); img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = done ? 255 : 90;
+      let mg = -Infinity; if (done) for (let q = 0; q < m; q++) { if (CN[q].id === 'Breq' && !minP) continue; const g = d.G[k * m + q]; if (g > mg) mg = g; }
+      const sc = hex2rgb(surf.length === 7 ? surf : '#ffffff'); mask.data[o] = sc[0]; mask.data[o + 1] = sc[1]; mask.data[o + 2] = sc[2]; mask.data[o + 3] = (done && mg > 1e-6) ? 175 : 0;
+    }
+    const mk = (id) => { const c = document.createElement('canvas'); c.width = n; c.height = n; c.getContext('2d').putImageData(id, 0, 0); return c; };
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(mk(img), 0, 0, W, H); ctx.drawImage(mk(mask), 0, 0, W, H);
+    // hatch over infeasible region
+    const hat = document.createElement('canvas'); hat.width = Math.round(W * dpr); hat.height = Math.round(H * dpr); const hc = hat.getContext('2d'); hc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    hc.strokeStyle = ink; hc.globalAlpha = 0.28; hc.lineWidth = 1; for (let k = -H; k < W; k += 7) { hc.beginPath(); hc.moveTo(k, H); hc.lineTo(k + H, 0); hc.stroke(); }
+    hc.setTransform(1, 0, 0, 1, 0, 0); hc.globalCompositeOperation = 'destination-in'; hc.imageSmoothingEnabled = true; hc.drawImage(mk(mask), 0, 0, hat.width, hat.height);
+    ctx.drawImage(hat, 0, 0, W, H);
+    // constraint boundaries (g = 0)
+    const tr = this.tracked(); const PXg = gx => (gx + 0.5) / n * W, PYg = gy => H - (n - 1 - gy + 0.5) / n * H;
+    const flip = gy => (n - 1 - gy);
+    tr.forEach((o, ci) => {
+      const grid = new Float64Array(n * n); for (let k = 0; k < n * n; k++) grid[k] = d.G[k * m + o.i];
+      const segs = contour(grid, n, n, 0); ctx.strokeStyle = cssVar(CAT[ci % CAT.length]); ctx.lineWidth = 2.4; ctx.setLineDash([]); ctx.lineCap = 'round'; ctx.beginPath();
+      for (const s of segs) { ctx.moveTo((s[0] + 0.5) / n * W, H - (s[1] + 0.5) / n * H); ctx.lineTo((s[2] + 0.5) / n * W, H - (s[3] + 0.5) / n * H); } ctx.stroke();
+    });
+    // path of outer iterations + current design
+    const u = C.toU(S.x), X = v => v * W, Y = v => H - v * H, ti = S.slice.i, tj = S.slice.j;
+    const trc = S.sol && S.sol.trace ? S.sol.trace : [];
+    if (trc.length) {
+      ctx.strokeStyle = surf; ctx.lineWidth = 4; ctx.beginPath(); trc.forEach((t, k) => k ? ctx.lineTo(X(t.u[ti]), Y(t.u[tj])) : ctx.moveTo(X(t.u[ti]), Y(t.u[tj]))); ctx.stroke();
+      ctx.strokeStyle = ink; ctx.lineWidth = 1.6; ctx.beginPath(); trc.forEach((t, k) => k ? ctx.lineTo(X(t.u[ti]), Y(t.u[tj])) : ctx.moveTo(X(t.u[ti]), Y(t.u[tj]))); ctx.stroke();
+      trc.forEach((t, k) => { ctx.beginPath(); ctx.arc(X(t.u[ti]), Y(t.u[tj]), 3, 0, 7); ctx.fillStyle = ink; ctx.fill(); });
+    }
+    this.arrows = this.forces(); const A = this.arrows;
+    const ax = X(u[ti]), ay = Y(u[tj]);
+    if (A) {
+      const sc = 46 / Math.max(A.fMag, A.cMag, 1e-12);
+      const arrow = (vx, vy, col) => { const ex = ax + vx * sc, ey = ay - vy * sc; ctx.strokeStyle = surf; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ex, ey); ctx.stroke(); ctx.strokeStyle = col; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ex, ey); const an = Math.atan2(ey - ay, ex - ax); ctx.lineTo(ex - 7 * Math.cos(an - 0.45), ey - 7 * Math.sin(an - 0.45)); ctx.moveTo(ex, ey); ctx.lineTo(ex - 7 * Math.cos(an + 0.45), ey - 7 * Math.sin(an + 0.45)); ctx.stroke(); };
+      if (A.fMag * sc > 3) arrow(A.f[0], A.f[1], cssVar('--c1')); if (A.cMag * sc > 3) arrow(A.c[0], A.c[1], cssVar('--c2'));
+    }
+    ctx.beginPath(); ctx.arc(ax, ay, 6.5, 0, 7); ctx.fillStyle = surf; ctx.fill(); ctx.lineWidth = 2.2; ctx.strokeStyle = ink; ctx.stroke(); ctx.beginPath(); ctx.arc(ax, ay, 2.2, 0, 7); ctx.fillStyle = ink; ctx.fill();
+    // axes labels
+    const vi = VAR[ti], vj = VAR[tj]; ctx.fillStyle = muted; ctx.font = '10px "IBM Plex Mono", monospace';
+    const tickVals = [0, 0.25, 0.5, 0.75, 1];
+    ctx.textAlign = 'center'; tickVals.forEach(tv => { const uu = u.slice(); uu[ti] = tv; const xx = C.toX(uu)[ti] * vi.sc; const px = clamp(X(tv), 14, W - 14); ctx.fillStyle = surf; ctx.globalAlpha = .7; ctx.fillRect(px - 16, H - 14, 32, 13); ctx.globalAlpha = 1; ctx.fillStyle = muted; ctx.fillText(fx(xx, vi.dec), px, H - 4); });
+    ctx.textAlign = 'left'; tickVals.forEach(tv => { const uu = u.slice(); uu[tj] = tv; const yy = C.toX(uu)[tj] * vj.sc; const py = clamp(Y(tv), 10, H - 18); ctx.fillStyle = surf; ctx.globalAlpha = .7; ctx.fillRect(0, py - 6, 30, 12); ctx.globalAlpha = 1; ctx.fillStyle = muted; ctx.fillText(fx(yy, vj.dec), 2, py + 3.5); });
+    $('#slLegend').innerHTML = `<span class="lg"><i class="sq" style="background:linear-gradient(90deg,${rampHex(0)},${rampHex(1)})"></i>${minP ? 'coil heat' : 'flux at target'} ${fx(vmin, 1)} to ${fx(vmax, 1)} ${minP ? 'W' : 'mT'}</span><span class="lg"><i class="hatch"></i>breaks a limit</span>` + tr.map((o, k) => `<span class="lg"><i style="background:${cssVar(CAT[k % CAT.length])}"></i>${esc(CN[o.i].label)}</span>`).join('') + `<span class="lg"><i class="dot"></i>solver path</span>`;
+    $('#slNote').innerHTML = rows < n ? 'Computing the landscape…' : `Horizontal: <b>${esc(vi.label)}</b> (${esc(vi.unit)}). Vertical: <b>${esc(vj.label)}</b> (${esc(vj.unit)}). Click anywhere to hold both values and re-optimize the rest.`;
+  },
+  forces() {
+    if (!S.sol) return null; const ti = S.slice.i, tj = S.slice.j, u0 = C.toU(S.x), h = 2e-4, m = CN.length;
+    const ev = (a, b) => { const u = u0.slice(); u[ti] = clamp(a, 0, 1); u[tj] = clamp(b, 0, 1); return C.evaluate(C.toX(u), S.P); };
+    const pa = ev(u0[ti] + h, u0[tj]), ma = ev(u0[ti] - h, u0[tj]), pb = ev(u0[ti], u0[tj] + h), mb = ev(u0[ti], u0[tj] - h);
+    const d = (rp, rm, hh) => { const f = -(rp.f - rm.f) / (2 * hh); let c = 0; for (let k = 0; k < m; k++) c -= S.sol.lam[k] * (rp.g[k] - rm.g[k]) / (2 * hh); return [f, c]; };
+    const [fx_, cx] = d(pa, ma, h), [fy, cy] = d(pb, mb, h);
+    return { f: [fx_, fy], c: [cx, cy], fMag: Math.hypot(fx_, fy), cMag: Math.hypot(cx, cy) };
+  },
+  paintSide() {
+    const A = this.arrows || this.forces(); const minP = S.P.objective === 'minP';
+    if (A) {
+      const dot = (A.f[0] * A.c[0] + A.f[1] * A.c[1]) / ((A.fMag * A.cMag) || 1), bal = A.fMag > 0 ? Math.hypot(A.f[0] + A.c[0], A.f[1] + A.c[1]) / A.fMag : 0;
+      $('#forceBox').innerHTML = `<div class="kgrid"><div><span><i class="sw" style="background:${cssVar('--c1')}"></i>${minP ? '−∇P' : '∇B'} (objective pull)</span><b>${A.fMag.toExponential(2)}</b></div><div><span><i class="sw" style="background:${cssVar('--c2')}"></i>−Σ λᵢ ∇gᵢ (limits push back)</span><b>${A.cMag.toExponential(2)}</b></div><div><span>Alignment (−1 = opposite)</span><b>${fx(dot, 3)}</b></div><div><span>Unbalanced share of pull</span><b>${fx(bal * 100, 1)}%</b></div></div>`;
+    }
+    const tr = S.sol && S.sol.trace ? S.sol.trace : [];
+    const pts = tr.map((t, k) => [k + 1, Math.log10(Math.max(t.viol, 1e-8))]), pb = tr.map((t, k) => [k + 1, t.B * 1e3]);
+    this.conv[0].set({ series: [{ name: 'log₁₀ worst violation', color: cssVar('--c2'), pts, dots: true }], xLabel: 'outer iteration', yLabel: 'log₁₀ g', yZero: false, fmtX: v => v.toFixed(0), yDom: [-8, 1] });
+    this.conv[1].set({ series: [{ name: minP ? 'flux (mT)' : 'flux at target (mT)', color: cssVar('--c1'), pts: pb, dots: true }], xLabel: 'outer iteration', yLabel: 'mT', fmtX: v => v.toFixed(0) });
+    const r = S.r, lam = S.sol ? S.sol.lam : [], f = r.f; let sum = 0, parts = [];
+    CN.forEach((c, i) => { if (lam[i] > 1e-3) { const t = lam[i] * r.g[i]; sum += t; parts.push(`λ<sub>${esc(c.id)}</sub> g = ${(lam[i]).toFixed(3)} × ${r.g[i].toFixed(4)}`); } });
+    $('#lagBox').innerHTML = `<div class="eqline">${tex('\\mathcal{L}(x,\\lambda)=f(x)+\\sum_i \\lambda_i\\,g_i(x)')}</div><p class="note">f = ${minP ? 'P/10 W' : '−B/1 mT'} = <b>${fx(f, 4)}</b> · Σ λᵢ gᵢ = <b>${sum.toExponential(1)}</b> (zero by complementary slackness) · ℒ = <b>${fx(f + sum, 4)}</b>.${parts.length ? '<br>' + parts.join(' · ') : ''}</p>`;
+  }
+};
+function rampHex(t) { const c = rampColor(t, isDark()); return `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`; }
+
+/* ===================== part 5: trade-offs, equations, build sheet, wiring ===================== */
+
+/* ---------------- trade-offs ---------------- */
+const AXES = {
+  Pcap: { label: 'Heat budget (acute)', unit: 'W', vals: [4, 7, 10, 14, 20, 28, 40, 55, 75], set: (P, v) => { P.size.Pcap = v; }, cons: 'Pcap', k: 1 },
+  Tmax: { label: 'Coil temperature limit', unit: '°C', vals: [40, 45, 50, 55, 60, 65, 70, 75, 80], set: (P, v) => { P.thermal.Tmax = v; }, cons: 'Tc_a', k: 1 },
+  tsess: { label: 'Acute session length', unit: 'min', vals: [2, 5, 8, 12, 17, 23, 30, 45, 60], set: (P, v) => { P.acute.tsess = v * 60; } },
+  duty: { label: 'Acute burst duty', unit: '%', vals: [20, 30, 40, 50, 60, 70, 80, 90, 100], set: (P, v) => { P.acute.duty = v / 100; } },
+  depth: { label: 'Target depth', unit: 'cm', vals: [3, 4, 5, 6, 7, 8, 9, 10, 11], set: (P, v) => { P.depth = v / 100; } },
+  mmax: { label: 'Copper mass limit', unit: 'kg', vals: [0.4, 0.7, 1, 1.4, 1.8, 2.4, 3, 3.6, 4.4], set: (P, v) => { P.size.mmax = v; }, cons: 'mCu', k: 1 },
+  Hmax: { label: 'Profile height limit', unit: 'mm', vals: [10, 13, 16, 20, 24, 28, 33, 38, 45], set: (P, v) => { P.size.Hmax = v / 1e3; }, cons: 'H', k: 1e-3 },
+  Elim: { label: 'Induced E-field limit', unit: 'V/m', vals: [0.3, 0.45, 0.6, 0.8, 1.1, 1.5, 2, 2.6, 3.3], set: (P, v) => { P.Elim = v; }, cons: 'E_a', k: 1 }
+};
+function axisCurrent(key) {
+  const P = S.P;
+  return { Pcap: P.size.Pcap, Tmax: P.thermal.Tmax, tsess: P.acute.tsess / 60, duty: P.acute.duty * 100, depth: P.depth * 100, mmax: P.size.mmax, Hmax: P.size.Hmax * 1e3, Elim: P.Elim }[key];
+}
+const metric = res => S.P.objective === 'minP' ? res.Pcoil : res.Bpk * 1e3;
+const metricName = () => S.P.objective === 'minP' ? ['Coil heat', 'W'] : ['Flux at target', 'mT'];
+let sweepTimer = null;
+function sweepSoon() { clearTimeout(sweepTimer); sweepTimer = setTimeout(runTrade, 600); }
+function runTrade() {
+  if (!S.sol) return;
+  const key = S.sweep.axis, ax = AXES[key], P0 = clonePSafe(S.P);
+  const jobs = ax.vals.map((v, k) => { const P = clonePSafe(P0); ax.set(P, v); return { P, warm: k > 0, opt: Object.assign({ lock: S.lock.slice(), maxOuter: 8, maxInner: 60 }, k === 0 ? { starts: [S.sol.u], lam0: S.sol.lam } : {}) }; });
+  S.sweep.busy = true; S.sweep.stale = false; S.sweep.data = { key, pts: [] }; const data = S.sweep.data;
+  if (TABS.trade.built) TABS.trade.paintSweep();
+  batchRunner.start({ type: 'batch', jobs }, (k, res) => { data.pts.push({ v: ax.vals[k], res }); if (S.tab === 'trade') TABS.trade.paintSweep(); }).then(() => {
+    S.sweep.busy = false; if (S.tab === 'trade') TABS.trade.paintSweep();
+    runSupplies();
+  }).catch(e => { if (e !== 'cancelled') { S.sweep.busy = false; } });
+}
+function runSupplies() {
+  const keys = ['wall12', 'wall24', 'bat24', 'bat48'], base = clonePSafe(S.P);
+  const jobs = keys.map(k => { const P = clonePSafe(base); P.supply = Object.assign({}, C.SUPPLIES[k]); return { P, opt: { lock: S.lock.slice(), starts: coldStarts(2).concat([S.sol.u]), maxOuter: 8, maxInner: 60 } }; });
+  S.supplyCmp.busy = true; S.supplyCmp.stale = false; S.supplyCmp.data = keys.map(k => ({ key: k, res: null }));
+  batchRunner.start({ type: 'batch', jobs }, (k, res) => { S.supplyCmp.data[k].res = res; if (S.tab === 'trade') TABS.trade.paintSupplies(); }).then(() => { S.supplyCmp.busy = false; if (S.tab === 'trade') TABS.trade.paintSupplies(); }).catch(e => { if (e !== 'cancelled') S.supplyCmp.busy = false; });
+}
+TABS.trade = {
+  build(h) {
+    h.innerHTML = card('Trade-off sweep', `<div class="toolrow"><label class="sel">Vary<select id="axSel">${Object.keys(AXES).map(k => `<option value="${k}">${esc(AXES[k].label)} (${esc(AXES[k].unit)})</option>`).join('')}</select></label><span id="swState" class="chip busy" hidden></span></div>
+      <div id="chSweep"></div><p class="note" id="swNote"></p>`, '', 'Each point is a full re-optimization of the whole design with one limit changed. The dashed tangent is the slope predicted by the Lagrange multiplier alone, with no re-solve.') +
+      card('How the design adapts', '<div id="chAdapt"></div><div class="tablewrap" id="swTable"></div>', '', 'Every variable shown as its position within its allowed range (0 = minimum, 1 = maximum). The table lists the actual values.') +
+      card('Which power source?', '<div id="supBars"></div><p class="note" id="supNote"></p>', '', 'The same problem solved from scratch for each source, with your other settings unchanged.');
+    this.ch = new LineChart($('#chSweep'), { height: 220 }); this.adapt = new LineChart($('#chAdapt'), { height: 200 });
+    $('#axSel').value = S.sweep.axis;
+    $('#axSel').addEventListener('change', e => { S.sweep.axis = e.target.value; S.sweep.data = null; S.sweep.stale = true; this.paintSweep(); sweepSoon(); });
+  },
+  update() { if (this.built) { this.paintSweep(); this.paintSupplies(); } if ((S.sweep.stale || S.supplyCmp.stale) && !S.sweep.busy && !S.supplyCmp.busy) sweepSoon(); },
+  paintSweep() {
+    const d = S.sweep.data, key = S.sweep.axis, ax = AXES[key], [mn, mu] = metricName(); const cur = axisCurrent(key), minP = S.P.objective === 'minP';
+    const st = $('#swState'); st.hidden = !(S.sweep.busy || S.sweep.stale); st.innerHTML = S.sweep.busy ? `<i class="spin"></i>Solving ${d ? d.pts.length : 0} of ${ax.vals.length}` : '<i class="spin"></i>Queued';
+    const pts = d && d.key === key ? d.pts.slice().sort((a, b) => a.v - b.v) : [];
+    const ok = pts.filter(p => p.res.kkt.viol < 5e-3), series = [{ name: mn + ' (best design at each setting)', color: cssVar('--c1'), pts: ok.map(p => [p.v, metric(p.res)]), dots: true }];
+    const bad = pts.filter(p => p.res.kkt.viol >= 5e-3); if (bad.length) series.push({ name: 'No feasible design', color: cssVar('--c3'), pts: bad.map(p => [p.v, metric(p.res)]), dots: true, w: 0 });
+    const markers = [], y0 = S.sol ? (minP ? S.sol.Pcoil : S.sol.Bpk * 1e3) : 0;
+    let xc = cur; if (key === 'Pcap' && !isFinite(cur)) xc = S.r.A.Pcoil;
+    if (S.sol && isFinite(xc)) {
+      markers.push({ x: xc, y: y0, color: cssVar('--ink'), label: 'now' });
+      if (ax.cons && CI[ax.cons] != null) {
+        const i = CI[ax.cons], lam = S.sol.lam[i], scl = S.r.scl[i], slope = (minP ? -10 : 1) * lam / scl * ax.k, xs = ok.length ? ok.map(p => p.v) : [xc], span = (Math.max(...xs) - Math.min(...xs)) * 0.22 || xc * 0.2;
+        series.push({ name: `Tangent from λ = ${lam.toFixed(3)}`, color: cssVar('--c2'), dash: '6 4', w: 1.8, pts: [[xc - span, y0 - slope * span], [xc + span, y0 + slope * span]] });
+      }
+    }
+    this.ch.set({ series, markers, xLabel: `${ax.label} (${ax.unit})`, yLabel: mu, yUnit: mu, xUnit: ax.unit, yZero: false });
+    const nm = ok.length > 1 ? ok.reduce((a, p) => Math.abs(p.v - xc) < Math.abs(a.v - xc) ? p : a, ok[0]) : null;
+    $('#swNote').innerHTML = !pts.length ? 'Sweep starts a moment after the design settles.' : bad.length ? `${bad.length} setting${bad.length > 1 ? 's' : ''} have no feasible design: the orange points show the least-bad attempt.` : (ax.cons && S.sol && S.sol.lam[CI[ax.cons]] > 1e-3 ? `The limit is binding now, so loosening it pays off at the tangent slope; the curve bends away as other limits take over.` : ax.cons ? 'This limit is slack at the current optimum, so changing it moves nothing until it starts to bind.' : 'No single multiplier prices this variable, so only the re-solved curve is shown.');
+    // adaptation chart + table
+    const names = VAR.map(v => v.label), ser = VAR.map((v, i) => ({ name: v.label, color: cssVar(CAT[i % CAT.length]), pts: ok.map(p => [p.v, p.res.u[i]]), w: 1.8 }));
+    this.adapt.set({ series: ser, yDom: [0, 1], xLabel: `${ax.label} (${ax.unit})`, yLabel: 'position in range', yZero: false, tipY: v => v.toFixed(2) });
+    const rows = pts.map(p => { const x = p.res.x, lamI = p.res.lam.map((l, i) => ({ l, i })).sort((a, b) => b.l - a.l)[0]; const top = lamI && lamI.l > 1e-3 ? CN[lamI.i].label : 'none';
+      return `<tr><td>${fx(p.v, ax.vals[0] < 2 ? 2 : 1)}</td><td>${fx(metric(p.res), 2)}</td><td>${fx(x[0] * 1e3, 0)} × ${fx(x[1] * 1e3, 0)}</td><td>${fx(x[2], 1)}</td><td>${fx(x[3], 1)}</td><td>${fx(x[4] * 180 / Math.PI, 1)}°</td><td>${fx(x[6], 1)}</td><td class="l">${esc(top)}</td></tr>`; }).join('');
+    $('#swTable').innerHTML = rows ? `<table><thead><tr><th>${esc(ax.unit)}</th><th>${esc(mu)}</th><th>Wing mm</th><th>Turns</th><th>AWG</th><th>Bend</th><th>Amps</th><th class="l">Top limit</th></tr></thead><tbody>${rows}</tbody></table>` : '';
+  },
+  paintSupplies() {
+    const d = S.supplyCmp.data; if (!d) { $('#supBars').innerHTML = '<p class="note">Waiting for the first sweep to finish.</p>'; return; }
+    const [mn, mu] = metricName(), minP = S.P.objective === 'minP', vals = d.filter(o => o.res).map(o => metric(o.res));
+    const mx = Math.max(...vals, 1e-9), curKey = S.supplyKey;
+    $('#supBars').innerHTML = d.map(o => {
+      const nm = C.SUPPLIES[o.key].name; if (!o.res) return `<div class="sbar"><span class="sn">${esc(nm)}</span><div class="sbt"><i style="width:0"></i></div><span class="sv mut">solving…</span></div>`;
+      const v = metric(o.res), feas = o.res.kkt.viol < 5e-3, x = o.res.x;
+      return `<div class="sbar${o.key === curKey ? ' cur' : ''}"><span class="sn">${esc(nm)}${o.key === curKey ? ' <em>now</em>' : ''}</span><div class="sbt"><i style="width:${(v / mx * 100).toFixed(1)}%" class="${feas ? '' : 'bad'}"></i></div><span class="sv">${fx(v, 2)} ${mu}</span><span class="ss2">${feas ? '' : 'no feasible design · '}${fx(x[2], 1)} turns · AWG ${fx(x[3], 1)} · ${fx(x[6], 1)} A</span></div>`;
+    }).join('');
+    const ok = d.filter(o => o.res && o.res.kkt.viol < 5e-3);
+    if (ok.length > 1 && !S.supplyCmp.busy) {
+      const best = ok.reduce((a, o) => (minP ? metric(o.res) < metric(a.res) : metric(o.res) > metric(a.res)) ? o : a, ok[0]), worst = ok.reduce((a, o) => (minP ? metric(o.res) > metric(a.res) : metric(o.res) < metric(a.res)) ? o : a, ok[0]);
+      const sp = Math.abs(metric(best.res) / metric(worst.res) - 1) * 100;
+      $('#supNote').innerHTML = sp < 4 ? 'The source barely matters here: heat, not voltage, sets the result. A smaller supply is enough.' : `${esc(C.SUPPLIES[best.key].name)} gives the best result, ${fx(sp, 0)}% ${minP ? 'less heat' : 'more flux'} than ${esc(C.SUPPLIES[worst.key].name)}.`;
+    } else $('#supNote').innerHTML = '';
+  }
+};
+
+/* ---------------- equations ---------------- */
+const EQG = [['geo', 'Winding and geometry'], ['field', 'Magnetic field'], ['efield', 'Induced E-field'], ['ind', 'Inductance'], ['drive', 'Waveform and drive'], ['therm', 'Heat'], ['opt', 'Optimization']];
+const CGRP = c => { const id = c.id; if (id.startsWith('E_')) return 'efield'; if (id === 'Breq') return 'field'; return ({ thermal: 'therm', drive: 'drive', size: 'geo', field: 'field' })[c.grp] || 'opt'; };
+function eqList() {
+  const r = S.r, P = S.P, g = r.geo, A = r.A, R = r.R, m = S.mode, res = m === 'a' ? A : R, M = m === 'a' ? P.acute : P.recov, T = res.T, W = C.WAVES[M.wave];
+  const lam = S.sol ? S.sol.lam : [], top = CN.map((c, i) => ({ c, l: lam[i] || 0 })).filter(o => o.l > 1e-3).sort((a, b) => b.l - a.l).slice(0, 3);
+  const th = r.geo.th * 180 / Math.PI;
+  return [
+    { g: 'geo', t: 'Wire diameter', e: 'd=0.127\\,\\mathrm{mm}\\cdot 92^{(36-\\mathrm{AWG})/39},\\quad d_I=d+2\\left(0.012\\,\\mathrm{mm}+0.015\\,d\\right)', v: `AWG ${fx(g.awg, 1)}: d = ${fx(g.d * 1e3, 3)} mm bare, ${fx(g.dI * 1e3, 3)} mm with enamel`, n: 'Standard AWG definition. A lower gauge number is thicker wire.' },
+    { g: 'geo', t: 'Winding thickness', e: 't=\\max\\!\\left(\\frac{N\\,d_I^{2}}{\\varphi\\,b},\\,d_I\\right)', v: `${fx(g.N, 1)} × ${fx(g.dI * 1e3, 2)}² / (${fx(P.phi, 2)} × ${fx(g.b * 1e3, 0)} mm) = ${fx(g.tRaw * 1e3, 2)} mm → t = ${fx(g.t * 1e3, 2)} mm (${fx(g.layers, 1)} layers)`, n: 'Turns are packed into a band of width b. What does not fit sideways stacks into layers and thickens the coil. A smooth maximum keeps the optimizer well behaved.' },
+    { g: 'geo', t: 'Turn length and wire length', e: '\\ell_t=2(w+\\ell)-4b,\\qquad \\ell_w=2N\\,\\ell_t', v: `ℓt = ${fx(g.lturn * 100, 1)} cm, total wire ${fx(g.lw, 1)} m for both wings`, n: 'Mean length of one rectangular turn at the middle of the band, times the turns of both wings.' },
+    { g: 'geo', t: 'Resistance with temperature and skin effect', e: 'R(T)=\\rho_{20}\\left[1+\\alpha(T-20)\\right]\\frac{\\ell_w}{A_{Cu}}\\,F_s,\\quad F_s=1+\\frac{(d/2\\delta)^{4}}{48}', v: `R20 = ${fx(g.R20 * 1e3, 1)} mΩ → ${fx(res.Rhot * 1e3, 1)} mΩ at ${fx(T.Tend, 0)} °C, Fs = ${fx(res.Fs, 4)}`, n: 'ρ20 = 1.724e-8 Ω·m, α = 0.0039 per K. Skin effect is negligible at these frequencies for sensible wire.' },
+    { g: 'geo', t: 'Copper mass and profile height', e: 'm=\\rho_{Cu}\\,\\ell_w A_{Cu},\\qquad H=t+w\\sin\\theta', v: `m = ${fx(g.mcu, 2)} kg (about $${fx(g.mcu * P.price, 0)} of wire), H = ${fx(r.prof * 1e3, 1)} mm at ${fx(th, 1)}° bend`, n: 'The raised edge of each bent wing sets the profile you lie on.' },
+    { g: 'field', t: 'Field of one straight segment (Biot–Savart)', e: '\\vec B=\\frac{\\mu_0 I}{4\\pi\\,d_\\perp}\\left(\\sin\\alpha_2-\\sin\\alpha_1\\right)\\,\\hat t\\times\\hat d', v: `Summed over ${r.S ? 'all' : ''} winding filaments of both wings at the target`, n: 'Exact for a finite straight wire. The coil is thousands of such segments, so there is no far-field or loop approximation.' },
+    { g: 'field', t: 'Flux at the target', e: 'B_T=k_B\\,I,\\qquad k_B=\\left|\\sum_{\\mathrm{seg}}\\vec b_{seg}(0,0,z_T)\\right|', v: `z_T = ${fx(r.zT * 100, 1)} cm, k_B = ${fx(r.kB * 1e3, 3)} mT/A, I = ${fx(res.I, 1)} A → B = ${fx(res.Bpk * 1e3, 2)} mT`, n: 'Linear in current, so the optimizer only needs k_B from geometry and I from the heat and voltage limits.' },
+    { g: 'field', t: 'Recovery current', e: 'I_r=\\frac{B_r}{k_B}', v: `${fx(P.recov.Bpk * 1e3, 2)} mT / ${fx(r.kB * 1e3, 3)} mT/A = ${fx(r.Ir, 2)} A`, n: 'Recovery flux is a setting, not a variable, so its current follows from the geometry.' },
+    { g: 'efield', t: 'Faraday’s law', e: '\\vec E=-\\frac{\\partial \\vec A}{\\partial t}-\\nabla\\varphi\\ \\approx\\ -\\frac{\\partial \\vec A}{\\partial t}', v: 'Half-space tissue, tangential component, no charge build-up term', n: 'A conservative simplification: surface charge on real tissue boundaries redistributes the field, so verify with FEM before relying on it.' },
+    { g: 'efield', t: 'Vector potential of a segment', e: '\\vec A=\\frac{\\mu_0 I}{4\\pi}\\,\\hat t\\left[\\mathrm{asinh}\\frac{s_2}{d_\\perp}-\\mathrm{asinh}\\frac{s_1}{d_\\perp}\\right]', v: `Peak over the skin surface: a_E = ${eng(r.aE, 'Wb/m/A', 3)}`, n: 'Closed form, summed over all segments. The maximum is searched on a grid across the skin under the coil.' },
+    { g: 'efield', t: 'Peak induced E-field', e: 'E_{pk}=\\kappa_{slew}\\,f\\,a_E\\,I', v: `${fx(W.slew, 2)} × ${M.f} Hz × ${eng(r.aE, '', 3)} × ${fx(res.I, 1)} A = ${fx(res.Epk, 2)} V/m (reference ${fx(P.Elim, 2)})`, n: 'κ is the waveform’s peak slew: 2π for a sine, 4 for a triangle. Slower waveforms and lower frequency cut E at the same flux.' },
+    { g: 'ind', t: 'Neumann mutual inductance', e: 'M_{ij}=\\frac{\\mu_0}{4\\pi}\\oint\\!\\oint\\frac{d\\vec\\ell_i\\cdot d\\vec\\ell_j}{|\\vec r_i-\\vec r_j|}', v: 'Parallel-segment pairs use the closed form Ψ(u) = u·asinh(u/d) − √(u²+d²)', n: 'Evaluated pair by pair for every segment, including the coupling between the two wings.' },
+    { g: 'ind', t: 'Total inductance', e: 'L=2L_w+2M_{12}', v: `L_w = ${fx(r.ind.Lw * 1e6, 1)} µH, M₁₂ = ${fx(r.ind.M12 * 1e6, 1)} µH → L = ${fx(r.ind.L * 1e6, 1)} µH`, n: 'The wings are wound in opposite sense for the figure-8 field, which makes the series coupling add (M₁₂ > 0).' },
+    { g: 'drive', t: 'Coil voltage', e: 'v=R\\,i+L\\frac{di}{dt},\\qquad V_{pk}=I\\sqrt{R^{2}+(2\\pi f L)^{2}}\\ (\\mathrm{sine})', v: `R = ${fx((res.Rhot + res.Rdrive) * 1e3, 0)} mΩ incl. drive, L = ${fx(r.ind.L * 1e6, 0)} µH, f = ${M.f} Hz → V = ${fx(res.Vreq, 2)} V`, n: 'At 100 Hz the inductive part is usually small for a low-turn coil, which is why heat rather than voltage limits the design.' },
+    { g: 'drive', t: 'Voltage available from the source', e: 'V_{av}=D_{max}\\left(V_{oc}-R_{src}\\,I_{bus}\\right),\\quad I_{bus}\\approx I\\frac{V_{req}}{V_{oc}}', v: `0.${fx(P.drive.Dmax * 100, 0)} × (${fx(P.supply.Voc, 0)} − ${fx(P.supply.Rsrc * 1e3, 0)} mΩ × ${fx(res.Ibus, 1)} A) = ${fx(res.Vav, 1)} V`, n: 'The H-bridge cannot output the full bus voltage, and the source sags under load.' },
+    { g: 'drive', t: 'Input power', e: 'P_{in}=\\delta\\,I_{rms}^{2}\\left(R_{coil}+R_{drive}\\right)+P_{sw},\\quad I_{rms}=\\kappa_{rms}I', v: `coil ${fx(res.Pcoil, 1)} W + drive ${fx(res.Pdrive, 1)} W + switching ${fx(res.Psw, 2)} W = ${fx(res.Pin, 1)} W`, n: 'Only the coil term heats the patient-side surface. Drive losses stay in the electronics.' },
+    { g: 'drive', t: 'Battery energy per session', e: 'E=P_{in}\\,t_{sess}\\le 0.8\\,E_{pack}', v: `${fx(res.E_Wh, 1)} Wh of ${isFinite(P.supply.capWh) ? fx(0.8 * P.supply.capWh, 0) + ' Wh usable' : 'unlimited (wall supply)'}`, n: 'A pack is held to 80% of rated energy so it does not run flat mid-session.' },
+    { g: 'therm', t: 'Lumped thermal node', e: 'C\\,\\frac{dT}{dt}=P_0\\left[1+\\alpha(T-20)\\right]-G\\,(T-T_{ref})', v: `C = ${fx(T.C, 0)} J/K, G = ${fx(T.G, 2)} W/K, T_ref = ${fx(T.Tref, 1)} °C, P0 = ${fx(T.P0, 1)} W`, n: 'Copper heats itself, loses heat to the air below and through the cover to the body above. Resistance rises with temperature, so heating feeds on itself.' },
+    { g: 'therm', t: 'Closed-form temperature', e: 'T(t)=T_{ref}+f_0\\,t\\,\\frac{1-e^{-\\lambda t}}{\\lambda t},\\qquad \\lambda=\\frac{G-\\alpha P_0}{C}', v: T.runaway ? 'λ ≤ 0: thermal runaway, heat generated grows faster than it can leave' : `λ = ${sig(T.lam, 3)} /s, τ = ${fx(T.tau / 60, 1)} min, steady state ${fx(T.Tss, 1)} °C, after ${fx(M.tsess / 60, 0)} min ${fx(T.Tend, 1)} °C`, n: 'Exact solution of the linearized node, so the session limit is checked without time stepping.' },
+    { g: 'therm', t: 'Conductances and skin temperature', e: 'G=A_{th}\\left(h_{dn}+U_{up}\\right),\\quad U_{up}=\\left(\\frac{h_0}{k_c}+\\frac{1}{h_t}\\right)^{-1},\\quad T_s=T_{core}+\\frac{U_{up}}{h_t}(T-T_{core})', v: `U_up = ${fx(T.Uup, 2)} W/m²K, A_th = ${fx(T.Ath * 1e4, 0)} cm², skin = ${fx(T.Ts, 1)} °C (limit ${fx(P.thermal.Tskin, 1)})`, n: 'The cover is the thermal path to the patient: thicker or more insulating cover keeps skin cooler but also traps heat in the coil.' },
+    { g: 'opt', t: 'The constrained problem', e: '\\min_{x}\\ f(x)\\quad\\mathrm{s.t.}\\quad g_i(x)\\le 0,\\ \\ i=1\\ldots 22', v: `f = ${P.objective === 'minP' ? 'P_coil / 10 W' : '−B_T / 1 mT'} = ${fx(r.f, 4)};  x = [w, ℓ, N, AWG, θ, b, I]`, n: 'Every limit is written as a normalized g ≤ 0 so 1 means “100% over”.' },
+    { g: 'opt', t: 'Lagrangian and KKT conditions', e: '\\mathcal{L}=f+\\sum_i\\lambda_i g_i,\\quad \\nabla f+\\sum_i\\lambda_i\\nabla g_i=0,\\quad \\lambda_i\\ge 0,\\quad \\lambda_i g_i=0', v: S.sol ? `stationarity ${S.sol.kkt.stat.toExponential(1)}, violation ${S.sol.kkt.viol.toExponential(1)}, complementarity ${S.sol.kkt.comp.toExponential(1)}` : 'not solved yet', n: 'At the optimum the objective’s pull is exactly cancelled by the active limits. A multiplier of zero means the limit is slack.' },
+    { g: 'opt', t: 'Augmented Lagrangian solver', e: '\\mathcal{L}_A=f+\\sum_i\\frac{1}{2\\rho}\\left[\\max(0,\\lambda_i+\\rho g_i)^{2}-\\lambda_i^{2}\\right],\\quad \\lambda_i\\leftarrow\\max(0,\\lambda_i+\\rho g_i)', v: S.sol ? `${(S.sol.trace || []).length} outer iterations, ${S.sol.evals} model evaluations` : '', n: 'Each outer step minimizes ℒ_A with projected BFGS on a normalized [0,1] box (log scale for N and I), then updates the multipliers.' },
+    { g: 'opt', t: 'Shadow price of a limit', e: '\\frac{\\partial B^{*}}{\\partial\\,\\mathrm{limit}_i}=\\frac{\\lambda_i}{s_i}\\ \\mathrm{mT}', v: top.length ? top.map(o => `${CN[CI[o.c.id]].label}: λ = ${o.l.toFixed(3)}`).join(' · ') : 'No active limits', n: 'How much the best achievable flux changes if you relax that limit by one unit. This is the quantity the trade-off tab verifies by re-solving.' }
+  ];
+}
+TABS.eq = {
+  build(h) {
+    h.innerHTML = `<section class="card"><p class="note">Every number on this page comes from these equations, evaluated live with your current design. Groups that contain a binding limit are marked.</p><div class="chips" id="eqChips" role="group"></div></section><div id="eqList"></div>`;
+    this.f = 'all'; $('#eqChips').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { this.f = b.dataset.g; this.update(); } });
+  },
+  update() {
+    const list = eqList(), bind = new Set();
+    const lam = S.sol ? S.sol.lam : []; CN.forEach((c, i) => { if ((lam[i] || 0) > 1e-3 && !(c.id === 'Breq' && S.P.objective !== 'minP')) bind.add(CGRP(c)); });
+    $('#eqChips').innerHTML = [['all', 'All']].concat(EQG).map(([k, n]) => `<button type="button" data-g="${k}" aria-pressed="${this.f === k}">${esc(n)}${bind.has(k) ? '<i class="bd" title="Contains a binding limit"></i>' : ''}</button>`).join('');
+    const fl = list.filter(q => this.f === 'all' || q.g === this.f);
+    $('#eqList').innerHTML = EQG.filter(([k]) => fl.some(q => q.g === k)).map(([k, n]) => `<section class="card eqg"><h3>${esc(n)}${bind.has(k) ? '<span class="tag">binding limit here</span>' : ''}</h3>${fl.filter(q => q.g === k).map(q => `<div class="eq"><div class="eqt">${esc(q.t)}</div><div class="eqf">${tex(q.e)}</div><div class="eqv"><span>Now</span> ${esc(q.v)}</div><p class="note">${esc(q.n)}</p></div>`).join('')}</section>`).join('');
+  }
+};
+
+/* ---------------- build sheet ---------------- */
+function discreteCheck() {
+  const g0 = S.r.geo, P = S.P, N = Math.max(1, Math.round(g0.N));
+  const geo = C.geometry({ wx: g0.wx, ly: g0.ly, N, awg: g0.awg, th: g0.th, b: g0.b }, P);
+  const rgd = C.discreteRings(geo), rgc = C.makeRings(geo, P.nRings, P.nLay), zT = S.r.zT - g0.t / 2 + geo.t / 2;
+  const one = rg => { const Sg = C.buildSegs(geo, rg, P), f = C.fieldAt(Sg, 0, 0, zT, new Float64Array(6)); return { kB: Math.hypot(f[0], f[1], f[2]), aE: C.peakA(Sg, geo, P).aE, L: C.inductance(geo, rg, P).L }; };
+  return { N, d: one(rgd), c: one(rgc), rgd, geo };
+}
+function runSnap() {
+  const x = S.x, af = [Math.floor(x[3]), Math.ceil(x[3])].filter((v, i, a) => a.indexOf(v) === i), nf = [Math.floor(x[2]), Math.ceil(x[2])].filter((v, i, a) => a.indexOf(v) === i);
+  const combos = []; for (const a of af) for (const n of nf) combos.push({ awg: Math.max(8, a), N: Math.max(2, n) });
+  const jobs = combos.map(c => { const lock = S.lock.slice(); lock[2] = c.N; lock[3] = c.awg; return { P: clonePSafe(S.P), opt: { lock, starts: [S.sol.u], lam0: S.sol.lam, maxOuter: 8, maxInner: 60 } }; });
+  S.snap = { busy: true, rows: [], combos }; TABS.build.paintSnap();
+  batchRunner.start({ type: 'batch', jobs }, (k, res) => { S.snap.rows[k] = { c: combos[k], res }; TABS.build.paintSnap(); }).then(() => { S.snap.busy = false; TABS.build.paintSnap(); }).catch(e => { if (e !== 'cancelled' && S.snap) S.snap.busy = false; });
+}
+function copyText(txt, btn) {
+  const done = ok => { const o = btn.dataset.t || btn.textContent; btn.dataset.t = o; btn.textContent = ok ? 'Copied' : 'Select and copy'; setTimeout(() => { btn.textContent = o; }, 1600); };
+  try { navigator.clipboard.writeText(txt).then(() => done(true), () => { done(false); const pre = btn.closest('.card').querySelector('pre'); if (pre) { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } }); } catch (e) { done(false); }
+}
+TABS.build = {
+  build(h) {
+    h.innerHTML = card('Winding sheet', '<div id="winding"></div>', '', 'The values below are the continuous optimum. Wire gauge and turns must be whole numbers to build, so use the next section to snap them.') +
+      card('Snap to buildable values', '<div class="btnrow"><button type="button" class="btn" id="snapBtn">Compare whole-number options</button></div><div id="snapOut"></div>', '', 'Tries every combination of the neighbouring wire gauges and whole turn counts, and re-optimizes the bend, size, band and current around each.') +
+      card('Continuum model against real turns', '<div id="discBox"></div>', '', 'The optimizer treats the winding as a smooth band of current. This compares that against the same coil with every turn placed individually.') +
+      card('Drive electronics', '<div id="drvBox"></div>') +
+      card('Before you energize it', '<ul class="check" id="chk"></ul>') +
+      card('Settings for the ESP32-S3', '<pre class="code" id="espOut" tabindex="0"></pre><div class="btnrow"><button type="button" class="btn" id="cpEsp">Copy constants</button><button type="button" class="btn ghost" id="cpJson">Copy design as JSON</button></div>', '', 'Constants only. The firmware must still measure coil temperature and current and cut the drive if either goes out of range.');
+    $('#snapBtn').addEventListener('click', runSnap);
+    $('#snapOut').addEventListener('click', e => { const b = e.target.closest('[data-adopt]'); if (!b) return; const row = S.snap.rows[+b.dataset.adopt]; S.lock[2] = row.c.N; S.lock[3] = row.c.awg; S.snap = null; solveNow(); saveSoon(); $('#tabs [data-tab=opt]').focus(); });
+    $('#cpEsp').addEventListener('click', e => copyText(this.esp, e.target));
+    $('#cpJson').addEventListener('click', e => copyText(this.json, e.target));
+  },
+  update() {
+    const r = S.r, P = S.P, g = r.geo, A = r.A, R = r.R;
+    const dc = discreteCheck(), rg = dc.rgd;
+    const rows = [
+      ['Wire', `AWG ${fx(g.awg, 1)}  (${fx(g.d * 1e3, 2)} mm bare, ${fx(g.dI * 1e3, 2)} mm with enamel)`],
+      ['Turns', `${fx(g.N, 1)} per wing  (${dc.N} when rounded: ${rg.npl} per layer × ${rg.Ld} layer${rg.Ld > 1 ? 's' : ''})`],
+      ['Wing', `${fx(g.wx * 1e3, 0)} mm wide × ${fx(g.ly * 1e3, 0)} mm long, winding band ${fx(g.b * 1e3, 0)} mm, thickness ${fx(g.t * 1e3, 1)} mm`],
+      ['Bend', `${fx(g.th * 180 / Math.PI, 1)}° per wing, ${fx(P.gap * 1e3, 0)} mm hinge gap, profile ${fx(r.prof * 1e3, 1)} mm`],
+      ['Copper', `${fx(g.lw, 1)} m total, ${fx(g.mcu, 2)} kg, about $${fx(g.mcu * P.price, 0)}`],
+      ['Electrical', `${fx(g.R20 * 1e3, 0)} mΩ cold, ${fx(A.Rhot * 1e3, 0)} mΩ hot, ${fx(r.ind.L * 1e6, 0)} µH, current density ${fx(A.Irms / (g.Acu * 1e6), 1)} A/mm² rms`],
+      ['Footprint', `${fx((2 * g.wx + P.gap) * 1e3, 0)} × ${fx(g.ly * 1e3, 0)} mm`]
+    ];
+    $('#winding').innerHTML = '<dl class="dl">' + rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('') + '</dl>';
+    this.paintSnap();
+    const rel = (a, b) => (a / b - 1) * 100;
+    $('#discBox').innerHTML = `<div class="tablewrap"><table><thead><tr><th class="l">At ${dc.N} turns per wing</th><th>Continuum</th><th>Each turn placed</th><th>Difference</th></tr></thead><tbody>
+      <tr><td class="l">Flux per amp, mT/A</td><td>${fx(dc.c.kB * 1e3, 3)}</td><td>${fx(dc.d.kB * 1e3, 3)}</td><td>${fx(rel(dc.c.kB, dc.d.kB), 1)}%</td></tr>
+      <tr><td class="l">Inductance, µH</td><td>${fx(dc.c.L * 1e6, 1)}</td><td>${fx(dc.d.L * 1e6, 1)}</td><td>${fx(rel(dc.c.L, dc.d.L), 1)}%</td></tr>
+      <tr><td class="l">E-field potential, µWb/m/A</td><td>${fx(dc.c.aE * 1e6, 3)}</td><td>${fx(dc.d.aE * 1e6, 3)}</td><td>${fx(rel(dc.c.aE, dc.d.aE), 1)}%</td></tr></tbody></table></div>`;
+    const Ia = A.I, Lh = r.ind.L, rip = P.supply.Voc / (4 * Lh * P.drive.fpwm), Es = 0.5 * Lh * Ia * Ia, Pfet = 2 * P.drive.Rds * A.Irms * A.Irms * P.acute.duty;
+    $('#drvBox').innerHTML = `<dl class="dl">${[
+      ['MOSFET rating', `Vds at least ${fx(1.5 * P.supply.Voc, 0)} V (1.5 × ${fx(P.supply.Voc, 0)} V; use 100 V parts on a 48 V pack), current at least ${fx(1.5 * Ia, 0)} A pulsed`],
+      ['Gate driver', 'Half-bridge or full-bridge driver with dead time and under-voltage lockout. A bare ESP32 pin cannot switch these FETs fast enough.'],
+      ['PWM ripple', `V / (4 L f) = ${fx(rip, 2)} A peak-to-peak at ${fx(P.drive.fpwm / 1e3, 0)} kHz (${fx(rip / Ia * 100, 1)}% of ${fx(Ia, 1)} A)`],
+      ['Stored energy', `½ L I² = ${fx(Es * 1e3, 1)} mJ at the acute peak. Add a fast clamp or TVS across the bridge and a bulk capacitor at the bus.`],
+      ['Shunt', `${fx(P.drive.Rsh * 1e3, 1)} mΩ gives ${fx(P.drive.Rsh * Ia * 1e3, 0)} mV at ${fx(Ia, 1)} A; dissipates ${fx(P.drive.Rsh * A.Irms * A.Irms, 2)} W rms. Use a current-sense amplifier.`],
+      ['FET conduction loss', `${fx(Pfet, 1)} W total in the bridge at the acute setting, plus ${fx(A.Psw, 2)} W switching`],
+      ['Bus current', `${fx(A.Ibus, 1)} A average from the source; fuse at ${fx(1.25 * A.Ibus + 2, 0)} A`]
+    ].map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`;
+    $('#chk').innerHTML = [
+      `Thermistor on the coil and another under the cover. The firmware stops the drive above ${fx(P.thermal.Tmax - 5, 0)} °C coil or ${fx(P.thermal.Tskin - 0.5, 1)} °C skin.`,
+      `Hardware current limit near ${fx(1.25 * Ia, 0)} A that does not depend on the firmware running.`,
+      'Power the electronics from a certified isolated supply or a battery, never from an unisolated one while you lie on the coil.',
+      `Check the induced field against your own limit (${fx(P.Elim, 2)} V/m is set here). Reference values vary by standard and population; this model is a conservative estimate, not a measurement.`,
+      'Measure the real flux with a Hall probe and compare with this model before treating any number as a dose.',
+      'This tool designs hardware. It does not say what flux or frequency helps a spinal condition; talk to a clinician about that.'
+    ].map(t => `<li>${esc(t)}</li>`).join('');
+    const nm = x => String(x).replace(/\./g, '_');
+    this.esp = `// generated by the butterfly PEMF optimizer\nconst float V_BUS_V        = ${fx(P.supply.Voc, 1)}f;\nconst float F_ACUTE_HZ     = ${P.acute.f}.0f;\nconst float I_ACUTE_PK_A   = ${fx(A.I, 2)}f;\nconst uint32_t T_ACUTE_S   = ${Math.round(P.acute.tsess)};\nconst float DUTY_ACUTE     = ${fx(P.acute.duty, 2)}f;\nconst float F_RECOV_HZ     = ${P.recov.f}.0f;\nconst float I_RECOV_PK_A   = ${fx(R.I, 2)}f;\nconst uint32_t T_RECOV_S   = ${Math.round(P.recov.tsess)};\nconst float DUTY_RECOV     = ${fx(P.recov.duty, 2)}f;\nconst float I_HW_LIMIT_A   = ${fx(1.25 * Math.max(A.I, R.I), 1)}f;\nconst float T_COIL_CUT_C   = ${fx(P.thermal.Tmax - 5, 0)}f;\nconst float T_SKIN_CUT_C   = ${fx(P.thermal.Tskin - 0.5, 1)}f;\nconst float PWM_HZ         = ${P.drive.fpwm}.0f;\nconst float SHUNT_OHM      = ${fx(P.drive.Rsh, 4)}f;\nconst float MAX_DUTY       = ${fx(P.drive.Dmax, 2)}f;`;
+    $('#espOut').textContent = this.esp;
+    this.json = JSON.stringify({ design: { wing_width_mm: +fx(g.wx * 1e3, 1), wing_length_mm: +fx(g.ly * 1e3, 1), turns_per_wing: +fx(g.N, 2), awg: +fx(g.awg, 2), bend_deg: +fx(g.th * 180 / Math.PI, 2), band_mm: +fx(g.b * 1e3, 1), gap_mm: P.gap * 1e3 }, acute: { f_hz: P.acute.f, wave: P.acute.wave, i_pk_a: +fx(A.I, 3), b_target_mt: +fx(A.Bpk * 1e3, 3), e_pk_v_per_m: +fx(A.Epk, 3), coil_t_end_c: +fx(A.T.Tend, 1), skin_t_c: +fx(A.T.Ts, 1) }, recovery: { f_hz: P.recov.f, wave: P.recov.wave, i_pk_a: +fx(R.I, 3), b_target_mt: +fx(R.Bpk * 1e3, 3), e_pk_v_per_m: +fx(R.Epk, 3) }, electrical: { r20_mohm: +fx(g.R20 * 1e3, 1), l_uh: +fx(r.ind.L * 1e6, 1) }, source: { voc: P.supply.Voc, name: P.supply.name } }, null, 2);
+  },
+  paintSnap() {
+    const el = $('#snapOut'); if (!el) return; const s = S.snap;
+    if (!s) { el.innerHTML = ''; return; }
+    const ok = s.rows.filter(Boolean).filter(o => o.res.kkt.viol < 5e-3), minP = S.P.objective === 'minP';
+    const best = ok.length ? ok.reduce((a, o) => (minP ? metric(o.res) < metric(a.res) : metric(o.res) > metric(a.res)) ? o : a, ok[0]) : null;
+    const [mn, mu] = metricName(), cont = minP ? S.sol.Pcoil : S.sol.Bpk * 1e3;
+    el.innerHTML = `<div class="tablewrap"><table><thead><tr><th class="l">Option</th><th>${esc(mn)}, ${esc(mu)}</th><th>Change</th><th>Wing mm</th><th>Bend</th><th>Amps</th><th></th></tr></thead><tbody>
+      <tr class="ref"><td class="l">Continuous optimum</td><td>${fx(cont, 2)}</td><td>–</td><td>${fx(S.x[0] * 1e3, 0)} × ${fx(S.x[1] * 1e3, 0)}</td><td>${fx(S.x[4] * 180 / Math.PI, 1)}°</td><td>${fx(S.x[6], 1)}</td><td></td></tr>
+      ${s.combos.map((c, k) => { const o = s.rows[k]; if (!o) return `<tr><td class="l">AWG ${c.awg}, ${c.N} turns</td><td colspan="6" class="mut">solving…</td></tr>`; const x = o.res.x, v = metric(o.res), feas = o.res.kkt.viol < 5e-3;
+        return `<tr${best === o ? ' class="best"' : ''}><td class="l">AWG ${c.awg}, ${c.N} turns${best === o ? ' <b class="tag">best</b>' : ''}</td><td>${fx(v, 2)}</td><td>${feas ? fx((v / cont - 1) * 100, 1) + '%' : '<span class="mut">infeasible</span>'}</td><td>${fx(x[0] * 1e3, 0)} × ${fx(x[1] * 1e3, 0)}</td><td>${fx(x[4] * 180 / Math.PI, 1)}°</td><td>${fx(x[6], 1)}</td><td>${feas ? `<button type="button" class="btn sm" data-adopt="${k}">Use</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>${s.busy ? '<p class="note"><i class="spin"></i> Solving…</p>' : ''}`;
+  }
+};
+
+/* ---------------- tab registry, render, init ---------------- */
+const TAB_LIST = [['field', 'Field'], ['opt', 'Optimum'], ['lag', 'Lagrangian'], ['trade', 'Trade-offs'], ['eq', 'Equations'], ['build', 'Build sheet']];
+S.sweep.axis = 'Pcap';
+function showTab(id) {
+  S.tab = id; const t = TABS[id], host = $('#panel_' + id);
+  if (!t.built) { t.build(host); t.built = true; }
+  $$('#tabs button').forEach(b => { const on = b.dataset.tab === id; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });
+  $$('#panels > section').forEach(p => { p.hidden = p.id !== 'panel_' + id; });
+  if (id === 'lag') S.sliceStale = true;
+  t.update();
+}
+function renderAll(fast) {
+  renderStatus(); if (!S.r) return;
+  renderReadout();
+  const t = TABS[S.tab]; if (!t || !t.built) return;
+  if (fast && (S.tab === 'lag' || S.tab === 'trade' || S.tab === 'build')) { if (S.tab === 'lag') S.sliceStale = true; return; }
+  t.update();
+}
+function init() {
+  loadState();
+  $('#tabs').innerHTML = TAB_LIST.map(([k, n]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="false" aria-controls="panel_${k}">${esc(n)}</button>`).join('');
+  $('#panels').innerHTML = TAB_LIST.map(([k]) => `<section id="panel_${k}" role="tabpanel" hidden></section>`).join('');
+  $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showTab(b.dataset.tab); });
+  $('#tabs').addEventListener('keydown', e => { const ks = TAB_LIST.map(t => t[0]), i = ks.indexOf(S.tab); if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { const n = ks[(i + (e.key === 'ArrowRight' ? 1 : ks.length - 1)) % ks.length]; showTab(n); $(`#tabs [data-tab=${n}]`).focus(); e.preventDefault(); } });
+  $('#modeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.mode = b.dataset.m; renderAll(true); if (S.tab === 'lag') TABS.lag.update(true); } });
+  $('#pswitch').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.panel = b.dataset.p; document.body.dataset.panel = S.panel; $$('#pswitch button').forEach(x => x.setAttribute('aria-pressed', x === b)); window.scrollTo(0, 0); });
+  document.body.dataset.panel = 'views';
+  renderControls(); wireControls();
+  S.x = C.toX(coldStarts(1)[0]); quickEval();
+  showTab('field'); renderAll();
+  solveNow({ global: true });
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { const t = TABS[S.tab]; if (t && t.built && (S.tab === 'field' || S.tab === 'lag')) t.update(S.tab === 'lag'); }, 150); });
+  if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener && matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { const t = TABS[S.tab]; if (t && t.built) t.update(); });
+}
+init();
+
+})();
+</script>
+</body></html>
