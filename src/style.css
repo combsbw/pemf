@@ -249,3 +249,37 @@ pre.code{margin:0;background:var(--sunk);border-radius:8px;padding:12px;overflow
 ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
 @media (max-width:520px){.dl>div{grid-template-columns:1fr;gap:0}.vrow{grid-template-columns:minmax(0,1fr) auto 40px}}
 @media (forced-colors:active){.bar i,.sbt i{forced-color-adjust:none}}
+
+/* my build */
+.mbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:14px 18px}
+.mbf{min-width:0}
+.mbi{display:flex;align-items:center;gap:8px;margin-top:3px}
+.mbi input[type=number]{width:100%;flex:1;min-width:0;font-size:15px}
+.lockb.sm{width:34px;height:34px;flex:none}
+.mbf .note{margin:3px 0 0;font-size:12px}
+/* diagrams */
+.wdwrap{overflow-x:auto;border:1px solid var(--hair);border-radius:8px;background:var(--surface)}
+svg.wd{display:block;width:100%;min-width:820px;height:auto}
+.wd text{fill:var(--ink2);font:11.5px var(--sans)}
+.wd .lb{fill:var(--ink);font-size:12.5px}.wd .b{font-weight:600}
+.wd .sm{fill:var(--ink2);font-size:11px}
+.wd .tg{fill:var(--accent);font:600 11px var(--mono)}
+.wd .orange{fill:var(--c2)}
+.wd .wire{fill:none;stroke:var(--ink);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.wd .pwr{stroke:var(--c8)}.wd .gnd{stroke:var(--muted)}.wd .sig{stroke:var(--accent);stroke-width:1.5}.wd .coil{stroke:var(--c2)}
+.wd .thick{stroke-width:2.6}.wd .dash{stroke-dasharray:5 4}
+.wd .box{fill:var(--sunk);stroke:var(--axis);stroke-width:1.2}
+.wd .dot{fill:var(--ink)}.wd .dot.orange{fill:var(--c2)}
+.wd .wing{fill:var(--sunk);stroke:var(--ink);stroke-width:1.6}
+.wd .turn{fill:none;stroke:var(--c2);stroke-width:1;opacity:.7}
+.wd .band{fill:var(--surface);stroke:var(--axis);stroke-width:1;stroke-dasharray:4 3}
+.wd .cur{fill:none;stroke:var(--ink);stroke-width:2.2}.wd .cur.red{stroke:var(--c8)}
+.wd .ah{fill:var(--ink)}
+.wd .dim{fill:none;stroke:var(--muted);stroke-width:1}
+.wd .tissue{fill:var(--accent-soft);stroke:none}
+.wd .skin{stroke:var(--ink);stroke-width:1.6;stroke-dasharray:6 4}
+.wd .cu{fill:none;stroke:var(--c2);stroke-linecap:butt}
+.wd .tgt{fill:var(--surface);stroke:var(--ink);stroke-width:2.2}
+td.wrap{white-space:normal;min-width:180px}
+
+.wd .halo{paint-order:stroke;stroke:var(--sunk);stroke-width:4px;stroke-linejoin:round}

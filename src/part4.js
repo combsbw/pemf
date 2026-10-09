@@ -83,7 +83,7 @@ function fmtVal(i) {
 TABS.opt = {
   build(h) {
     h.innerHTML = card('Design variables', '<div id="vars"></div><div class="btnrow"><button type="button" class="btn ghost" id="relBtn">Release all holds</button><button type="button" class="btn" id="globBtn">Search from several starts</button></div>',
-      '', 'Drag a slider to hold that variable. The solver re-optimizes everything else around it. A padlock marks a held value.') +
+      '', 'Drag a slider to hold that variable. The solver re-optimizes everything else around it. A padlock marks a held value. To type exact values, use the My build tab.') +
       card('Constraint ledger', '<div id="ledger"></div><label class="chk sm"><input type="checkbox" id="showAll"> Show slack constraints</label>', '', 'Each limit is a constraint g ≤ 0. The multiplier λ is its price: how much the objective improves per unit the limit is relaxed.') +
       card('Optimality check', '<div id="kktBox"></div>');
     $('#vars').innerHTML = VAR.map((v, i) => `<div class="vrow" data-i="${i}"><div class="vname"><label for="vs${i}">${esc(v.label)}</label><small id="vb${i}"></small></div><div class="vsl"><input type="range" id="vs${i}" data-v="${i}" min="0" max="1000" step="1"><div class="vend"><span>${fx(v.lo * v.sc, v.dec)}</span><span>${fx(v.hi * v.sc, v.dec)} ${esc(v.unit)}</span></div></div><div class="vval"><b id="vv${i}"></b> <span>${esc(v.unit)}</span></div><button type="button" class="lockb" data-lock="${i}" aria-pressed="false" aria-label="Hold ${esc(v.label)}"></button></div>`).join('');
@@ -95,8 +95,8 @@ TABS.opt = {
       const b = e.target.closest('[data-lock]'); if (!b) return; const i = +b.dataset.lock;
       S.lock[i] = S.lock[i] == null ? S.x[i] : null; this.paintVars(); solveSoon(); saveSoon();
     });
-    $('#relBtn').addEventListener('click', () => { S.lock.fill(null); this.paintVars(); solveNow(); saveSoon(); });
-    $('#globBtn').addEventListener('click', () => solveNow({ global: true }));
+    $('#relBtn').addEventListener('click', () => { S.manual = false; S.lock.fill(null); this.paintVars(); solveNow(); saveSoon(); });
+    $('#globBtn').addEventListener('click', () => { S.manual = false; if (S.lock.every(v => v != null)) S.lock.fill(null); solveNow({ global: true }); });
     $('#showAll').addEventListener('change', e => { S.showAll = e.target.checked; this.paintLedger(); });
   },
   paintVars(skip) {
@@ -104,9 +104,10 @@ TABS.opt = {
     VAR.forEach((v, i) => {
       const sl = $('#vs' + i); if (i !== skip && document.activeElement !== sl) sl.value = Math.round(clamp(u[i], 0, 1) * 1000);
       $('#vv' + i).textContent = fx(S.x[i] * v.sc, v.dec);
-      const locked = S.lock[i] != null, bnd = S.sol ? S.sol.atBound[i] : '';
+      const locked = S.lock[i] != null && !S.manual, bnd = S.sol && !S.manual ? S.sol.atBound[i] : '';
       const lb = $(`[data-lock="${i}"]`); lb.setAttribute('aria-pressed', locked); lb.innerHTML = locked ? LOCK_SVG : UNLOCK_SVG; lb.title = locked ? 'Held. Click to let the solver choose.' : 'Free. Click to hold the current value.';
-      const note = locked ? 'held by you' : bnd === 'lo' ? 'at its lower bound' : bnd === 'hi' ? 'at its upper bound' : 'chosen by solver';
+      const single = S.P.coilType === 'single' && i === 4; sl.disabled = single; lb.hidden = single || S.manual;
+      const note = single ? 'not used: a single coil is flat' : S.manual ? 'your number' : locked ? 'held by you' : bnd === 'lo' ? 'at its lower bound' : bnd === 'hi' ? 'at its upper bound' : 'chosen by solver';
       const el = $('#vb' + i); el.textContent = note; el.className = locked ? 'held' : bnd ? 'atb' : '';
     });
   },
@@ -117,7 +118,7 @@ TABS.opt = {
     $('#ledger').innerHTML = shown.map(o => {
       const gv = S.r.g[o.i], over = gv > 1e-3, act = o.l > 1e-3 || gv > -0.01; const f = clamp(o.f, 0, 1.25);
       const sh = shadow(o.i);
-      return `<div class="lrow ${over ? 'over' : act ? 'act' : ''}"><div class="ln"><span>${esc(o.c.label)}</span><em>${over ? '<b class="tag">over</b>' : act ? '<b class="tag">binding</b>' : ''}</em></div><div class="lb"><div class="bar"><i style="width:${(f / 1.25 * 100).toFixed(1)}%"></i><u style="left:${(1 / 1.25 * 100).toFixed(1)}%"></u></div></div><div class="lv">${esc(fmtVal(o.i))}</div><div class="ll">${o.l > 1e-3 ? `<span class="lam">λ ${o.l < 10 ? o.l.toFixed(3) : o.l.toFixed(1)}</span>${sh ? `<span class="sh">${esc(sh)}</span>` : ''}` : '<span class="mut">slack</span>'}</div></div>`;
+      return `<div class="lrow ${over ? 'over' : act ? 'act' : ''}"><div class="ln"><span>${esc(o.c.label)}</span><em>${over ? '<b class="tag">over</b>' : act ? '<b class="tag">binding</b>' : ''}</em></div><div class="lb"><div class="bar"><i style="width:${(f / 1.25 * 100).toFixed(1)}%"></i><u style="left:${(1 / 1.25 * 100).toFixed(1)}%"></u></div></div><div class="lv">${esc(fmtVal(o.i))}</div><div class="ll">${o.l > 1e-3 ? `<span class="lam">λ ${o.l < 10 ? o.l.toFixed(3) : o.l.toFixed(1)}</span>${sh ? `<span class="sh">${esc(sh)}</span>` : ''}` : `<span class="mut">${S.manual ? (over ? 'over your limit' : 'within limit') : 'slack'}</span>`}</div></div>`;
     }).join('') || '<p class="note">Nothing is near a limit.</p>';
   },
   paintKkt() {

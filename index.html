@@ -256,6 +256,40 @@ ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
 @media (max-width:520px){.dl>div{grid-template-columns:1fr;gap:0}.vrow{grid-template-columns:minmax(0,1fr) auto 40px}}
 @media (forced-colors:active){.bar i,.sbt i{forced-color-adjust:none}}
 
+/* my build */
+.mbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:14px 18px}
+.mbf{min-width:0}
+.mbi{display:flex;align-items:center;gap:8px;margin-top:3px}
+.mbi input[type=number]{width:100%;flex:1;min-width:0;font-size:15px}
+.lockb.sm{width:34px;height:34px;flex:none}
+.mbf .note{margin:3px 0 0;font-size:12px}
+/* diagrams */
+.wdwrap{overflow-x:auto;border:1px solid var(--hair);border-radius:8px;background:var(--surface)}
+svg.wd{display:block;width:100%;min-width:820px;height:auto}
+.wd text{fill:var(--ink2);font:11.5px var(--sans)}
+.wd .lb{fill:var(--ink);font-size:12.5px}.wd .b{font-weight:600}
+.wd .sm{fill:var(--ink2);font-size:11px}
+.wd .tg{fill:var(--accent);font:600 11px var(--mono)}
+.wd .orange{fill:var(--c2)}
+.wd .wire{fill:none;stroke:var(--ink);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.wd .pwr{stroke:var(--c8)}.wd .gnd{stroke:var(--muted)}.wd .sig{stroke:var(--accent);stroke-width:1.5}.wd .coil{stroke:var(--c2)}
+.wd .thick{stroke-width:2.6}.wd .dash{stroke-dasharray:5 4}
+.wd .box{fill:var(--sunk);stroke:var(--axis);stroke-width:1.2}
+.wd .dot{fill:var(--ink)}.wd .dot.orange{fill:var(--c2)}
+.wd .wing{fill:var(--sunk);stroke:var(--ink);stroke-width:1.6}
+.wd .turn{fill:none;stroke:var(--c2);stroke-width:1;opacity:.7}
+.wd .band{fill:var(--surface);stroke:var(--axis);stroke-width:1;stroke-dasharray:4 3}
+.wd .cur{fill:none;stroke:var(--ink);stroke-width:2.2}.wd .cur.red{stroke:var(--c8)}
+.wd .ah{fill:var(--ink)}
+.wd .dim{fill:none;stroke:var(--muted);stroke-width:1}
+.wd .tissue{fill:var(--accent-soft);stroke:none}
+.wd .skin{stroke:var(--ink);stroke-width:1.6;stroke-dasharray:6 4}
+.wd .cu{fill:none;stroke:var(--c2);stroke-linecap:butt}
+.wd .tgt{fill:var(--surface);stroke:var(--ink);stroke-width:2.2}
+td.wrap{white-space:normal;min-width:180px}
+
+.wd .halo{paint-order:stroke;stroke:var(--sunk);stroke-width:4px;stroke-linejoin:round}
+
 </style>
 </head><body>
 <header class="top"><div><h1>Butterfly PEMF coil optimizer</h1><p>Flux against amps, volts and heat, solved with Lagrange multipliers. Change anything on the left; the optimum, every chart and every equation update together.</p></div><div id="status"></div></header>
@@ -296,7 +330,7 @@ ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
       nRings: 5, nLay: 0,
       gap: 0.008, phi: 0.85, rin: 0.012,
       depth: 0.06, standoff: 0.010,
-      objective: 'maxB', BaReq: 2e-3,
+      coilType: 'butterfly', objective: 'maxB', BaReq: 2e-3,
       acute: { f: 100, wave: 'sine', duty: 1.0, tsess: 600 },
       recov: { f: 20, wave: 'sine', duty: 1.0, tsess: 3600, Bpk: 0.5e-3 },
       supply: { name: '24 V battery', kind: 'battery', Voc: 24, Rsrc: 0.08, Pmax: 720, capWh: 120 },
@@ -328,13 +362,13 @@ ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
     const tRaw = x.N * dI * dI / (P.phi * x.b);
     const t = smax(tRaw, dI, 0.05 * dI);
     const lturn = 2 * (x.wx + x.ly) - 4 * x.b;
-    const lw = 2 * x.N * lturn;
+    const nw = P.coilType === 'single' ? 1 : 2, lw = nw * x.N * lturn;
     const g = {
-      wx: x.wx, ly: x.ly, N: x.N, awg: x.awg, th: x.th, b: x.b,
+      wx: x.wx, ly: x.ly, N: x.N, awg: x.awg, th: nw === 1 ? 0 : x.th, b: x.b, nw, gapEff: nw === 1 ? -x.wx : P.gap,
       d, dI, Acu, tRaw, t, lturn, lw,
       R20: K.rho20 * lw / Acu,
       mcu: K.dens * lw * Acu,
-      Aband: 2 * (x.wx * x.ly - (x.wx - 2 * x.b) * (x.ly - 2 * x.b)),
+      Aband: nw * (x.wx * x.ly - (x.wx - 2 * x.b) * (x.ly - 2 * x.b)),
       layers: t / dI
     };
     return g;
@@ -368,10 +402,10 @@ ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
     return out;
   }
   function buildSegs(geo, rg, P) {
-    const cnt = rg.R * 8;
+    const cnt = rg.R * 4 * geo.nw;
     const S = new Float64Array(cnt * 7); let o = 0;
-    for (const sigma of [1, -1]) for (let k = 0; k < rg.R; k++) {
-      const sg = ringSegs(geo, sigma, rg.s[k], rg.z[k], P.gap);
+    for (const sigma of (geo.nw === 1 ? [1] : [1, -1])) for (let k = 0; k < rg.R; k++) {
+      const sg = ringSegs(geo, sigma, rg.s[k], rg.z[k], geo.gapEff);
       for (const q of sg) { S[o] = q[0]; S[o + 1] = q[1]; S[o + 2] = q[2]; S[o + 3] = q[3]; S[o + 4] = q[4]; S[o + 5] = q[5]; S[o + 6] = rg.n[k]; o += 7; }
     }
     return S;
@@ -425,7 +459,7 @@ ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
     const off = geo.t / 2 + P.standoff;
     for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
       const u = (i + 0.5) / nu * geo.wx, v = (j / (nv - 1)) * geo.ly * 0.46;
-      pts.push([P.gap / 2 + u * ct - off * st, v, u * st + off * ct]);
+      pts.push([geo.gapEff / 2 + u * ct - off * st, v, u * st + off * ct]);
     }
     for (let j = 0; j < nv; j++) pts.push([0, (j / (nv - 1)) * geo.ly * 0.46, off]);
     return pts;
@@ -493,9 +527,10 @@ ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
       else { dU = Math.hypot(hv1 - hv2, dz); dV = Math.hypot(hu1 - hu2, dz); }
       Lw += rg.n[k] * rg.n[l] * mutRect(hu1, hv1, hu2, hv2, dz, dU, dV);
     }
+    if (geo.nw === 1) return { Lw, M12: 0, L: Lw };
     /* wing-to-wing coupling is ~3% of L: a coarse 3-ring winding reproduces it to ~1% of M12 (<0.1% of L) */
     const rc = makeRings(geo, 3, 1), Rc = rc.R, W1 = [], W2 = [];
-    for (let k = 0; k < Rc; k++) { W1.push(ringSegs(geo, 1, rc.s[k], rc.z[k], P.gap)); W2.push(ringSegs(geo, -1, rc.s[k], rc.z[k], P.gap)); }
+    for (let k = 0; k < Rc; k++) { W1.push(ringSegs(geo, 1, rc.s[k], rc.z[k], geo.gapEff)); W2.push(ringSegs(geo, -1, rc.s[k], rc.z[k], geo.gapEff)); }
     for (let k = 0; k < Rc; k++) for (let l = k; l < Rc; l++) {            // mirror symmetry: M(k,l) = M(l,k)
       const m = rc.n[k] * rc.n[l] * crossMutual(W1[k], W2[l]);
       M12 += k === l ? m : 2 * m;
@@ -602,7 +637,7 @@ ul.check{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
     set(6, A.Vreq, A.Vav, A.Vav, 'ratio'); set(7, Rm.Vreq, Rm.Vav, Rm.Vav, 'ratio');
     set(8, A.Pin, sp.Pmax, sp.Pmax, 'ratio'); set(9, Rm.Pin, sp.Pmax, sp.Pmax, 'ratio');
     set(10, Ia, dr.Isw, dr.Isw, 'ratio'); set(11, Ir, dr.Isw, dr.Isw, 'ratio');
-    set(12, 2 * geo.wx + P.gap, sz.Wmax, sz.Wmax, 'ratio'); set(13, geo.ly, sz.Lmax, sz.Lmax, 'ratio');
+    set(12, geo.nw === 1 ? geo.wx : 2 * geo.wx + P.gap, sz.Wmax, sz.Wmax, 'ratio'); set(13, geo.ly, sz.Lmax, sz.Lmax, 'ratio');
     set(14, prof, sz.Hmax, sz.Hmax, 'ratio'); set(15, geo.mcu, sz.mmax, sz.mmax, 'ratio');
     set(16, 2 * geo.b + 2 * P.rin, geo.wx, geo.wx, 'ratio'); set(17, 2 * geo.b + 2 * P.rin, geo.ly, geo.ly, 'ratio');
     if (isFinite(sz.Pcap)) set(18, A.Pcoil, sz.Pcap, sz.Pcap, 'ratio'); else { val[18] = A.Pcoil; lim[18] = Infinity; scl[18] = 1; g[18] = -1; }
@@ -909,12 +944,12 @@ function modeKit(r, P, mode) {                 // current, frequency and slew fa
   return { I: res.I, f: M.f, W, slewF: W.slew * M.f, M, res };
 }
 function skinZ(r, P, x) {                      // vertical position of the skin surface above x
-  const g = r.geo, off = g.t / 2 + P.standoff, ax = Math.abs(x) - P.gap / 2;
+  const g = r.geo, off = g.t / 2 + P.standoff, ax = Math.abs(x) - g.gapEff / 2;
   return ax <= 0 ? off : ax * Math.tan(g.th) + off / Math.cos(g.th);
 }
 function planeSpec(r, P, plane) {
   const g = r.geo, ct = Math.cos(g.th), st = Math.sin(g.th);
-  const X = P.gap / 2 + g.wx * ct + 0.03, Y = g.ly / 2 + 0.03;
+  const X = g.gapEff / 2 + g.wx * ct + 0.03, Y = g.ly / 2 + 0.03;
   const zlo = Math.min(0, g.wx * st) - 0.03, zhi = r.zT + 0.035;
   if (plane === 'xz') return { x0: -X, x1: X, y0: zlo, y1: zhi, ax: 'x', ay: 'z', pt: (a, b) => [a, 0, b] };
   if (plane === 'yz') return { x0: -Y, x1: Y, y0: zlo, y1: zhi, ax: 'y', ay: 'z', pt: (a, b) => [0, a, b] };
@@ -964,9 +999,9 @@ function drawFieldMap(canvas, r, P, opt) {
   const g = r.geo, ct = Math.cos(g.th), st = Math.sin(g.th);
   ctx.save(); ctx.lineCap = 'round';
   if (plane === 'xz') {
-    for (const sg of [1, -1]) {
-      ctx.strokeStyle = surf; ctx.lineWidth = Math.max(3, g.t * (drawH / hDom)) + 3; ctx.beginPath(); ctx.moveTo(PX(sg * P.gap / 2), PY(0)); ctx.lineTo(PX(sg * (P.gap / 2 + g.wx * ct)), PY(g.wx * st)); ctx.stroke();
-      ctx.strokeStyle = ink; ctx.lineWidth = Math.max(3, g.t * (drawH / hDom)); ctx.beginPath(); ctx.moveTo(PX(sg * P.gap / 2), PY(0)); ctx.lineTo(PX(sg * (P.gap / 2 + g.wx * ct)), PY(g.wx * st)); ctx.stroke();
+    for (const sg of (g.nw === 1 ? [1] : [1, -1])) {
+      ctx.strokeStyle = surf; ctx.lineWidth = Math.max(3, g.t * (drawH / hDom)) + 3; ctx.beginPath(); ctx.moveTo(PX(sg * g.gapEff / 2), PY(0)); ctx.lineTo(PX(sg * (g.gapEff / 2 + g.wx * ct)), PY(g.wx * st)); ctx.stroke();
+      ctx.strokeStyle = ink; ctx.lineWidth = Math.max(3, g.t * (drawH / hDom)); ctx.beginPath(); ctx.moveTo(PX(sg * g.gapEff / 2), PY(0)); ctx.lineTo(PX(sg * (g.gapEff / 2 + g.wx * ct)), PY(g.wx * st)); ctx.stroke();
     }
     // skin line
     ctx.setLineDash([]);
@@ -975,10 +1010,10 @@ function drawFieldMap(canvas, r, P, opt) {
     ctx.font = '600 10px "IBM Plex Mono", monospace'; ctx.textAlign = 'left'; const ly0 = PY(skinZ(r, P, spec.x0)) - 7; ctx.fillStyle = surf; ctx.fillRect(22, ly0 - 10, 30, 14); ctx.fillStyle = ink; ctx.fillText('skin', 26, ly0);
   } else if (plane === 'xy' || plane === 'skin') {
     ctx.strokeStyle = ink; ctx.lineWidth = 1.6;
-    for (const sg of [1, -1]) {
-      const xa = sg * P.gap / 2, xb = sg * (P.gap / 2 + g.wx * ct);
+    for (const sg of (g.nw === 1 ? [1] : [1, -1])) {
+      const xa = sg * g.gapEff / 2, xb = sg * (g.gapEff / 2 + g.wx * ct);
       ctx.strokeRect(Math.min(PX(xa), PX(xb)), PY(g.ly / 2), Math.abs(PX(xb) - PX(xa)), PY(-g.ly / 2) - PY(g.ly / 2));
-      const bi = g.b * ct; const xa2 = sg * (P.gap / 2 + bi), xb2 = sg * (P.gap / 2 + g.wx * ct - bi);
+      const bi = g.b * ct; const xa2 = sg * (g.gapEff / 2 + bi), xb2 = sg * (g.gapEff / 2 + g.wx * ct - bi);
       ctx.save(); ctx.globalAlpha = 0.5; ctx.setLineDash([3, 3]); ctx.strokeRect(Math.min(PX(xa2), PX(xb2)), PY(g.ly / 2 - g.b), Math.abs(PX(xb2) - PX(xa2)), PY(-g.ly / 2 + g.b) - PY(g.ly / 2 - g.b)); ctx.restore();
     }
   } else {
@@ -1045,7 +1080,7 @@ const S = {
   P: C.defaults(), lock: new Array(NV).fill(null), sol: null, x: null, r: null,
   mode: 'a', tab: 'field', solving: false, solveMs: 0, panel: 'views',
   plane: 'xz', q: 'B', slice: { i: 5, j: 0 }, sweep: { axis: 'Pcap', data: null, busy: false, stale: true }, supplyCmp: { data: null, busy: false, stale: true },
-  snap: null, supplyKey: 'bat24', showAll: false
+  snap: null, supplyKey: 'bat24', showAll: false, manual: false
 };
 S.P.supply = Object.assign({}, C.SUPPLIES.bat24);
 /* objective descriptors: every place that depends on what is being optimized reads from here */
@@ -1059,14 +1094,14 @@ const needsB = () => S.P.objective !== 'maxB';
 
 /* ---------- persistence (per-viewer convenience only) ---------- */
 const KEY = 'pemf-butterfly-v2';
-function saveState() { try { localStorage.setItem(KEY, JSON.stringify({ P: S.P, lock: S.lock, supplyKey: S.supplyKey }, (k, v) => v === Infinity ? '∞' : v)); } catch (e) { } }
+function saveState() { try { localStorage.setItem(KEY, JSON.stringify({ P: S.P, lock: S.lock, supplyKey: S.supplyKey, manual: S.manual, x: S.x }, (k, v) => v === Infinity ? '∞' : v)); } catch (e) { } }
 function loadState() {
   try {
     const t = localStorage.getItem(KEY); if (!t) return;
     const o = JSON.parse(t, (k, v) => v === '∞' ? Infinity : v); if (!o || !o.P) return;
     const def = C.defaults();
     const merge = (a, b) => { for (const k in b) { if (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && a[k]) merge(a[k], b[k]); else if (k in a || k === 'Imax') a[k] = b[k]; } return a; };
-    S.P = merge(def, o.P); S.lock = Array.isArray(o.lock) && o.lock.length === NV ? o.lock : S.lock; S.supplyKey = o.supplyKey || S.supplyKey;
+    S.P = merge(def, o.P); S.lock = Array.isArray(o.lock) && o.lock.length === NV ? o.lock : S.lock; S.supplyKey = o.supplyKey || S.supplyKey; S.manual = !!o.manual && S.lock.every(v => v != null); if (S.manual && Array.isArray(o.x) && o.x.length === NV) S.x = o.x;
   } catch (e) { }
 }
 const saveSoon = debounce(saveState, 400);
@@ -1125,12 +1160,20 @@ function coldStarts(n) {
   return base.slice(0, n || 2);
 }
 let solveToken = 0;
+const lockFor = P => { const l = S.manual ? new Array(NV).fill(null) : S.lock.slice(); if (P.coilType === 'single') l[4] = 0; return l; };
+function applyManual() {
+  const x = S.x.slice(); for (let i = 0; i < NV; i++) if (S.lock[i] != null) x[i] = S.lock[i];
+  S.x = x; S.r = C.evaluate(S.x, S.P); let viol = 0; S.r.g.forEach((g, i) => { if (!(CN[i].id === 'Breq' && !needsB())) viol = Math.max(viol, g); });
+  S.sol = { u: C.toU(x), x: x.slice(), lam: new Array(CN.length).fill(0), kkt: { stat: 0, viol: Math.max(0, viol), comp: 0 }, evals: 1, trace: [], atBound: VAR.map(() => 'locked'), g: S.r.g, Bpk: S.r.A.Bpk, Pcoil: S.r.A.Pcoil };
+  S.solving = false; S.error = null; S.sweep.stale = true; S.supplyCmp.stale = true; S.snap = null; S.sliceStale = true;
+}
 function solveNow(opts) {
-  opts = opts || {}; const token = ++solveToken; S.solving = true; renderStatus();
+  opts = opts || {};
+  if (S.manual) { solveToken++; mainRunner.cancel(); applyManual(); renderAll(); return; } const token = ++solveToken; S.solving = true; renderStatus();
   const t0 = performance.now();
   const P = clonePSafe(S.P);
   const starts = opts.global ? coldStarts(3).concat(S.sol ? [S.sol.u] : []) : (S.sol ? [S.sol.u] : coldStarts(2));
-  const opt = { lock: S.lock.slice(), starts, maxOuter: 10, maxInner: 80 };
+  const opt = { lock: lockFor(S.P), starts, maxOuter: 10, maxInner: 80 };
   if (S.sol && !opts.global) opt.lam0 = S.sol.lam;
   mainRunner.start({ type: 'solve', P, opt }).then(sol => {
     if (token !== solveToken) return;
@@ -1151,6 +1194,7 @@ const P_ = (path, scale) => ({
 });
 const SCHEMA = [
   { sec: 'Target and objective', open: true, items: [
+    { id: 'coilType', type: 'seg', label: 'Coil', opts: [['butterfly', 'Butterfly'], ['single', 'Single coil']], ...P_('coilType', 1), reflow: true, hint: 'Butterfly is two wings wound in opposite sense (a figure-8) with an optional bend. Single coil is one flat rectangular spiral.' },
     { id: 'objective', type: 'seg', label: 'Objective', opts: [['maxB', 'Max flux'], ['minI', 'Min amps'], ['minP', 'Min heat']], ...P_('objective', 1), reflow: true, hint: 'Max flux pushes B at the target as high as your limits allow. Min amps and Min heat fix the flux you need and then minimize current or coil dissipation.' },
     { id: 'Isw', label: 'Peak current budget (acute)', unit: 'A', min: 1, max: 60, step: 0.5, ...P_('drive.Isw', 1), hint: 'The most amps your build can handle. The solver trades turns, wire gauge and voltage to stay under it. Recovery current is set by its flux and the same limit applies.' },
     { id: 'BaReq', label: 'Required acute flux', unit: 'mT', min: 0.5, max: 20, step: 0.1, ...P_('BaReq', 1e3), show: P => P.objective !== 'maxB' },
@@ -1199,7 +1243,7 @@ const SCHEMA = [
     { id: 'price', label: 'Wire price', unit: '$/kg', min: 5, max: 40, step: 1, ...P_('price', 1) }
   ] },
   { sec: 'Winding assumptions', items: [
-    { id: 'gap', label: 'Gap between wings', unit: 'mm', min: 2, max: 30, step: 1, ...P_('gap', 1e3) },
+    { id: 'gap', label: 'Gap between wings', unit: 'mm', min: 2, max: 30, step: 1, ...P_('gap', 1e3), show: P => P.coilType !== 'single' },
     { id: 'phi', label: 'Winding packing', unit: '', min: 0.6, max: 0.95, step: 0.01, ...P_('phi', 1), hint: 'Share of the winding window the insulated wire fills.' },
     { id: 'rin', label: 'Inner clearance', unit: 'mm', min: 5, max: 40, step: 1, ...P_('rin', 1e3) }
   ] }
@@ -1274,6 +1318,7 @@ function renderStatus() {
   const el = $('#status'); if (!el) return;
   const s = S.sol; let html;
   if (S.error) html = `<span class="chip bad">Solver error</span>`;
+  else if (S.manual && s) { const o = CN.map((c, i) => ({ c, g: S.r.g[i] })).filter(q => q.g > 1e-3 && !(q.c.id === 'Breq' && !needsB())); html = o.length ? `<span class="chip bad" title="${esc(o.map(q => q.c.label).join(', '))}">Your numbers · ${o.length} limit${o.length > 1 ? 's' : ''} over</span>` : '<span class="chip ok">Your numbers · within every limit</span>'; }
   else if (S.solving) html = `<span class="chip busy"><i class="spin"></i>Solving</span>`;
   else if (s && s.kkt.viol > 5e-3) html = `<span class="chip bad" title="Largest constraint violation at the best point found">No feasible design · worst limit over by ${fx(s.kkt.viol * 100, 0)}%</span>`;
   else if (s) html = `<span class="chip ok" title="Stationarity residual ${s.kkt.stat.toExponential(1)}, worst violation ${s.kkt.viol.toExponential(1)}, complementarity ${s.kkt.comp.toExponential(1)}">KKT satisfied · ${fx(S.solveMs / 1000, 1)} s</span>`;
@@ -1282,6 +1327,7 @@ function renderStatus() {
 }
 function limitedBy() {
   if (!S.sol) return '';
+  if (S.manual) { const o = CN.map((c, i) => ({ c, g: S.r.g[i] })).filter(q => q.g > -0.03 && isFinite(S.r.lim[CI[q.c.id]]) && !(q.c.id === 'Breq' && !needsB())).sort((a, b) => b.g - a.g).slice(0, 3); return o.length ? 'Your numbers are at or over: ' + o.map(q => `<b>${esc(q.c.label.toLowerCase())}</b>`).join(', ') : 'Your numbers are inside every limit.'; }
   const lam = S.sol.lam, act = CN.map((c, i) => ({ c, i, l: lam[i] })).filter(o => o.l > 1e-3 && !(!needsB() && o.c.id === 'Breq')).sort((a, b) => b.l - a.l).slice(0, 3);
   const bounds = S.sol.atBound.map((b, i) => (b === 'lo' || b === 'hi') ? VAR[i].label.toLowerCase() + (b === 'lo' ? ' at minimum' : ' at maximum') : null).filter(Boolean);
   if (!act.length && !bounds.length) return 'No limit is binding: the design is set by the variable ranges.';
@@ -1391,7 +1437,7 @@ function fmtVal(i) {
 TABS.opt = {
   build(h) {
     h.innerHTML = card('Design variables', '<div id="vars"></div><div class="btnrow"><button type="button" class="btn ghost" id="relBtn">Release all holds</button><button type="button" class="btn" id="globBtn">Search from several starts</button></div>',
-      '', 'Drag a slider to hold that variable. The solver re-optimizes everything else around it. A padlock marks a held value.') +
+      '', 'Drag a slider to hold that variable. The solver re-optimizes everything else around it. A padlock marks a held value. To type exact values, use the My build tab.') +
       card('Constraint ledger', '<div id="ledger"></div><label class="chk sm"><input type="checkbox" id="showAll"> Show slack constraints</label>', '', 'Each limit is a constraint g ≤ 0. The multiplier λ is its price: how much the objective improves per unit the limit is relaxed.') +
       card('Optimality check', '<div id="kktBox"></div>');
     $('#vars').innerHTML = VAR.map((v, i) => `<div class="vrow" data-i="${i}"><div class="vname"><label for="vs${i}">${esc(v.label)}</label><small id="vb${i}"></small></div><div class="vsl"><input type="range" id="vs${i}" data-v="${i}" min="0" max="1000" step="1"><div class="vend"><span>${fx(v.lo * v.sc, v.dec)}</span><span>${fx(v.hi * v.sc, v.dec)} ${esc(v.unit)}</span></div></div><div class="vval"><b id="vv${i}"></b> <span>${esc(v.unit)}</span></div><button type="button" class="lockb" data-lock="${i}" aria-pressed="false" aria-label="Hold ${esc(v.label)}"></button></div>`).join('');
@@ -1403,8 +1449,8 @@ TABS.opt = {
       const b = e.target.closest('[data-lock]'); if (!b) return; const i = +b.dataset.lock;
       S.lock[i] = S.lock[i] == null ? S.x[i] : null; this.paintVars(); solveSoon(); saveSoon();
     });
-    $('#relBtn').addEventListener('click', () => { S.lock.fill(null); this.paintVars(); solveNow(); saveSoon(); });
-    $('#globBtn').addEventListener('click', () => solveNow({ global: true }));
+    $('#relBtn').addEventListener('click', () => { S.manual = false; S.lock.fill(null); this.paintVars(); solveNow(); saveSoon(); });
+    $('#globBtn').addEventListener('click', () => { S.manual = false; if (S.lock.every(v => v != null)) S.lock.fill(null); solveNow({ global: true }); });
     $('#showAll').addEventListener('change', e => { S.showAll = e.target.checked; this.paintLedger(); });
   },
   paintVars(skip) {
@@ -1412,9 +1458,10 @@ TABS.opt = {
     VAR.forEach((v, i) => {
       const sl = $('#vs' + i); if (i !== skip && document.activeElement !== sl) sl.value = Math.round(clamp(u[i], 0, 1) * 1000);
       $('#vv' + i).textContent = fx(S.x[i] * v.sc, v.dec);
-      const locked = S.lock[i] != null, bnd = S.sol ? S.sol.atBound[i] : '';
+      const locked = S.lock[i] != null && !S.manual, bnd = S.sol && !S.manual ? S.sol.atBound[i] : '';
       const lb = $(`[data-lock="${i}"]`); lb.setAttribute('aria-pressed', locked); lb.innerHTML = locked ? LOCK_SVG : UNLOCK_SVG; lb.title = locked ? 'Held. Click to let the solver choose.' : 'Free. Click to hold the current value.';
-      const note = locked ? 'held by you' : bnd === 'lo' ? 'at its lower bound' : bnd === 'hi' ? 'at its upper bound' : 'chosen by solver';
+      const single = S.P.coilType === 'single' && i === 4; sl.disabled = single; lb.hidden = single || S.manual;
+      const note = single ? 'not used: a single coil is flat' : S.manual ? 'your number' : locked ? 'held by you' : bnd === 'lo' ? 'at its lower bound' : bnd === 'hi' ? 'at its upper bound' : 'chosen by solver';
       const el = $('#vb' + i); el.textContent = note; el.className = locked ? 'held' : bnd ? 'atb' : '';
     });
   },
@@ -1425,7 +1472,7 @@ TABS.opt = {
     $('#ledger').innerHTML = shown.map(o => {
       const gv = S.r.g[o.i], over = gv > 1e-3, act = o.l > 1e-3 || gv > -0.01; const f = clamp(o.f, 0, 1.25);
       const sh = shadow(o.i);
-      return `<div class="lrow ${over ? 'over' : act ? 'act' : ''}"><div class="ln"><span>${esc(o.c.label)}</span><em>${over ? '<b class="tag">over</b>' : act ? '<b class="tag">binding</b>' : ''}</em></div><div class="lb"><div class="bar"><i style="width:${(f / 1.25 * 100).toFixed(1)}%"></i><u style="left:${(1 / 1.25 * 100).toFixed(1)}%"></u></div></div><div class="lv">${esc(fmtVal(o.i))}</div><div class="ll">${o.l > 1e-3 ? `<span class="lam">λ ${o.l < 10 ? o.l.toFixed(3) : o.l.toFixed(1)}</span>${sh ? `<span class="sh">${esc(sh)}</span>` : ''}` : '<span class="mut">slack</span>'}</div></div>`;
+      return `<div class="lrow ${over ? 'over' : act ? 'act' : ''}"><div class="ln"><span>${esc(o.c.label)}</span><em>${over ? '<b class="tag">over</b>' : act ? '<b class="tag">binding</b>' : ''}</em></div><div class="lb"><div class="bar"><i style="width:${(f / 1.25 * 100).toFixed(1)}%"></i><u style="left:${(1 / 1.25 * 100).toFixed(1)}%"></u></div></div><div class="lv">${esc(fmtVal(o.i))}</div><div class="ll">${o.l > 1e-3 ? `<span class="lam">λ ${o.l < 10 ? o.l.toFixed(3) : o.l.toFixed(1)}</span>${sh ? `<span class="sh">${esc(sh)}</span>` : ''}` : `<span class="mut">${S.manual ? (over ? 'over your limit' : 'within limit') : 'slack'}</span>`}</div></div>`;
     }).join('') || '<p class="note">Nothing is near a limit.</p>';
   },
   paintKkt() {
@@ -1583,6 +1630,248 @@ TABS.lag = {
 };
 function rampHex(t) { const c = rampColor(t, isDark()); return `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`; }
 
+/* ===================== part 6: My build (own numbers) and Wiring diagrams ===================== */
+const clampv = (v, a, b) => Math.min(b, Math.max(a, v));
+function setVar(i, v) { S.x[i] = v; S.lock[i] = v; }
+function afterEdit() {
+  quickEval(); if (S.manual) { applyManual(); } else { solveSoon(); }
+  renderStatus(); renderReadout(); saveSoon();
+}
+
+/* ---------------- My build ---------------- */
+function mbFields() {
+  const r = S.r, P = S.P, g = r.geo, A = r.A, single = g.nw === 1, W = single ? 'Coil' : 'Wing', turnsLabel = single ? 'Turns' : 'Turns per wing';
+  return [
+    { id: 'awg', label: 'Wire gauge', unit: 'AWG', step: 1, v: S.x[3], vi: 3, set: v => setVar(3, clampv(v, 0, 40)), note: `${fx(g.d * 1e3, 2)} mm bare, ${fx(g.dI * 1e3, 2)} mm with enamel, ${fx(g.Acu * 1e6, 2)} mm² of copper` },
+    { id: 'dia', label: 'Wire diameter (bare)', unit: 'mm', step: 0.01, v: g.d * 1e3, vi: 3, set: v => setVar(3, clampv(36 - 39 * Math.log(Math.max(v, 0.05) / 0.127) / Math.log(92), 0, 40)), note: 'Enter a measured diameter and the gauge follows.' },
+    { id: 'N', label: turnsLabel, unit: '', step: 1, v: S.x[2], vi: 2, set: v => setVar(2, clampv(v, 0.5, 2000)), note: `${fx(g.N * g.lturn, 1)} m of wire per ${single ? 'coil' : 'wing'}` },
+    { id: 'lw', label: 'Total wire length', unit: 'm', step: 0.5, v: g.lw, vi: 2, set: v => setVar(2, clampv(v / (g.nw * g.lturn), 0.5, 2000)), note: `Enter the length of wire you have and the turns follow. ${fx(g.lturn * 100, 1)} cm per turn at these dimensions.` },
+    { id: 'wx', label: W + ' width', unit: 'mm', step: 1, v: g.wx * 1e3, vi: 0, set: v => setVar(0, clampv(v / 1e3, 0.01, 1)), note: '' },
+    { id: 'ly', label: W + ' length', unit: 'mm', step: 1, v: g.ly * 1e3, vi: 1, set: v => setVar(1, clampv(v / 1e3, 0.01, 1)), note: '' },
+    { id: 'b', label: 'Winding band width', unit: 'mm', step: 1, v: g.b * 1e3, vi: 5, set: v => setVar(5, clampv(v / 1e3, 0.002, 0.3)), note: `Inner opening ${fx((g.wx - 2 * g.b) * 1e3, 0)} × ${fx((g.ly - 2 * g.b) * 1e3, 0)} mm` },
+    { id: 'th', label: 'Bend angle', unit: '°', step: 0.5, v: g.th * 180 / Math.PI, vi: 4, set: v => setVar(4, clampv(v * Math.PI / 180, -0.5, 1.2)), only: 'butterfly', note: 'Wings rise toward the patient by this angle.' },
+    { id: 'gap', label: 'Hinge gap', unit: 'mm', step: 1, v: P.gap * 1e3, vi: null, set: v => { S.P.gap = clampv(v / 1e3, 0.0005, 0.1); }, only: 'butterfly', note: 'Space between the two wings at the hinge.' },
+    { id: 'Ia', label: 'Peak current (acute)', unit: 'A', step: 0.1, v: S.x[6], vi: 6, set: v => setVar(6, clampv(v, 0.01, 500)), note: `Recovery mode runs ${fx(r.R.I, 2)} A for ${fx(P.recov.Bpk * 1e3, 2)} mT` },
+    { id: 'Bw', label: 'Flux at target (acute)', unit: 'mT', step: 0.05, v: A.Bpk * 1e3, vi: 6, set: v => setVar(6, clampv(v * 1e-3 / r.kB, 0.01, 500)), note: `${fx(r.kB * 1e3, 3)} mT per amp at ${fx(P.depth * 100, 1)} cm. Enter the flux you want and the current follows.` }
+  ].filter(f => !f.only || f.only === P.coilType || (f.only === 'butterfly' && P.coilType !== 'single'));
+}
+const decFor = st => st >= 1 ? 0 : st >= 0.1 ? 1 : 2;
+TABS.mine = {
+  build(h) {
+    h.innerHTML = card('Where the numbers come from', `<div class="toolrow"><div class="seg" id="srcSeg" role="group" aria-label="Design source"><button type="button" data-src="opt">Optimizer picks</button><button type="button" data-src="man">My numbers</button></div><div class="seg" id="coilSeg" role="group" aria-label="Coil type"><button type="button" data-coil="butterfly">Butterfly</button><button type="button" data-coil="single">Single coil</button></div></div><p class="note" id="srcNote"></p><div class="btnrow" id="srcBtns"></div>`) +
+      card('Your dimensions', '<div class="mbgrid" id="mbFields"></div>', '', 'Type any value. Related fields move together: gauge with diameter, turns with wire length, current with flux.') +
+      card('What these numbers give you', '<div id="mbRes"></div><div id="mbOver"></div>') +
+      card('Winding check', '<div id="mbWind"></div>', '', 'A practical packing count for a real winding, separate from the smooth model the optimizer uses.');
+    $('#srcSeg').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.src === 'man' && !S.manual) { S.lock = S.x.slice(); S.manual = true; afterEdit(); renderAll(); }
+      else if (b.dataset.src === 'opt' && S.manual) { S.manual = false; S.lock.fill(null); solveNow(); saveSoon(); }
+    });
+    $('#coilSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (S.P.coilType !== b.dataset.coil) { applyParam('coilType', b.dataset.coil); renderControls(); } });
+    $('#srcBtns').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.act === 'round') { setVar(3, Math.round(S.x[3])); setVar(2, Math.max(1, Math.round(S.x[2]))); afterEdit(); renderAll(); }
+      else if (b.dataset.act === 'copy') { S.lock = S.sol && !S.manual ? S.sol.x.slice() : S.x.slice(); S.x = S.lock.slice(); S.manual = true; afterEdit(); renderAll(); }
+    });
+    $('#mbFields').addEventListener('input', e => {
+      const t = e.target; if (!t.dataset.f) return; const f = mbFields().find(q => q.id === t.dataset.f); if (!f) return;
+      const v = parseFloat(t.value); if (!isFinite(v)) return; f.set(v); this.focusId = f.id; afterEdit(); this.paint(f.id); this.paintResults();
+    });
+    $('#mbFields').addEventListener('click', e => { const b = e.target.closest('[data-lock]'); if (!b) return; const i = +b.dataset.lock; S.lock[i] = S.lock[i] == null ? S.x[i] : null; afterEdit(); this.paint(); });
+  },
+  update() { this.paint(); this.paintResults(); },
+  paint(skip) {
+    const fs = mbFields(), host = $('#mbFields'), single = S.P.coilType === 'single';
+    $$('#srcSeg button').forEach(b => b.setAttribute('aria-pressed', (b.dataset.src === 'man') === S.manual));
+    $$('#coilSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.coil === S.P.coilType));
+    $('#srcNote').innerHTML = S.manual ? 'The solver is off. Every result below is computed straight from your numbers, and the ledger shows any limit you are over.' : 'The solver chooses everything. Type a value into any field to hold it, and the solver re-optimizes the rest around it.';
+    $('#srcBtns').innerHTML = S.manual ? '<button type="button" class="btn ghost" data-act="round">Round gauge and turns to whole numbers</button>' : '<button type="button" class="btn ghost" data-act="copy">Use the current design as my numbers</button>';
+    const have = $$('.mbf', host).map(e => e.dataset.id).join();
+    if (have !== fs.map(f => f.id).join()) {
+      host.innerHTML = fs.map(f => `<div class="mbf" data-id="${f.id}"><label class="cl" for="mb_${f.id}">${esc(f.label)}<span class="u">${esc(f.unit)}</span></label><div class="mbi"><input type="number" inputmode="decimal" id="mb_${f.id}" data-f="${f.id}" step="${f.step}" value="${fx(f.v, f.id === 'N' ? 1 : decFor(f.step))}">${f.vi != null && !S.manual ? `<button type="button" class="lockb sm" data-lock="${f.vi}" aria-pressed="false" aria-label="Hold ${esc(f.label)}"></button>` : '<span></span>'}</div><p class="note" data-n="${f.id}"></p></div>`).join('');
+    }
+    for (const f of fs) {
+      const inp = $('#mb_' + f.id); if (!inp) continue;
+      if (document.activeElement !== inp && f.id !== skip) inp.value = fx(f.v, f.id === 'N' ? 1 : decFor(f.step));
+      const n = $(`[data-n="${f.id}"]`); if (n) n.textContent = f.note;
+      const lb = $(`[data-lock="${f.vi}"]`, host);
+      if (lb && f.vi != null) { const held = S.lock[f.vi] != null; lb.setAttribute('aria-pressed', held); lb.innerHTML = held ? LOCK_SVG : UNLOCK_SVG; lb.title = held ? 'Held. Click to let the solver choose.' : 'Free. Typing a value holds it.'; }
+    }
+  },
+  paintResults() {
+    const r = S.r, P = S.P, g = r.geo, A = r.A, R = r.R, T = A.T;
+    const items = [
+      ['Flux at target', `${fx(A.Bpk * 1e3, 2)} mT`], ['Peak current', `${fx(A.I, 2)} A (rms ${fx(A.Irms, 2)})`], ['Voltage needed', `${fx(A.Vreq, 1)} V of ${fx(A.Vav, 1)} V`],
+      ['Coil heat', `${fx(A.Pcoil, 1)} W`], ['Coil temperature', `${fx(T.Tend, 0)} °C after ${fx(P.acute.tsess / 60, 0)} min`], ['Skin temperature', `${fx(T.Ts, 1)} °C`],
+      ['Induced E-field', `${fx(A.Epk, 2)} V/m`], ['Resistance', `${fx(g.R20 * 1e3, 0)} mΩ cold, ${fx(A.Rhot * 1e3, 0)} mΩ hot`], ['Inductance', `${fx(r.ind.L * 1e6, 0)} µH`],
+      ['Wire', `${fx(g.lw, 1)} m, ${fx(g.mcu, 2)} kg`], ['Current density', `${fx(A.Irms / (g.Acu * 1e6), 1)} A/mm² rms`], ['Source current', `${fx(A.Ibus, 1)} A average`],
+      ['Footprint', `${fx((g.nw === 1 ? g.wx : 2 * g.wx + P.gap) * 1e3, 0)} × ${fx(g.ly * 1e3, 0)} mm, ${fx(r.prof * 1e3, 0)} mm high`], ['Recovery mode', `${fx(R.I, 2)} A, ${fx(R.Bpk * 1e3, 2)} mT`]
+    ];
+    $('#mbRes').innerHTML = '<div class="kgrid">' + items.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('') + '</div>';
+    const over = CN.map((c, i) => ({ c, i, g: r.g[i] })).filter(q => q.g > 1e-3 && isFinite(r.lim[q.i]) && !(q.c.id === 'Breq' && !needsB()));
+    $('#mbOver').innerHTML = over.length ? `<p class="note"><b>Over a limit:</b></p>` + over.map(q => `<div class="lrow over"><div class="ln"><span>${esc(q.c.label)}</span><em><b class="tag">over</b></em></div><div class="lv">${esc(fmtVal(q.i))}</div></div>`).join('') : '<p class="note"><b>Inside every limit</b> you have set in the Problem panel.</p>';
+    const npl = Math.max(1, Math.floor(g.b / g.dI)), layers = Math.ceil(g.N / npl), thick = layers * g.dI;
+    $('#mbWind').innerHTML = `<dl class="dl">${[
+      ['Turns per layer', `${npl} (band ${fx(g.b * 1e3, 0)} mm ÷ ${fx(g.dI * 1e3, 2)} mm wire)`],
+      ['Layers', `${layers} for ${fx(g.N, 1)} turns, ${fx(thick * 1e3, 1)} mm thick wound neatly`],
+      ['Smooth model used', `${fx(g.t * 1e3, 1)} mm at ${fx(P.phi, 2)} packing`],
+      ['Wire per ' + (g.nw === 1 ? 'coil' : 'wing'), `${fx(g.N * g.lturn, 1)} m at ${fx(g.lturn * 100, 1)} cm per turn`]
+    ].map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`;
+  }
+};
+
+/* ---------------- Wiring ---------------- */
+const STD = { fuse: [1, 2, 3, 5, 7.5, 10, 15, 20, 25, 30, 40, 50, 60], vds: [30, 40, 60, 80, 100, 150, 200], tvs: [12, 15, 18, 20, 22, 24, 26, 28, 30, 33, 36, 40, 43, 45, 48, 51, 54, 58, 60, 64, 70, 75, 78], cap: [470, 680, 1000, 1500, 2200, 3300, 4700, 6800], capV: [25, 35, 50, 63, 100], gain: [20, 50, 100, 200] };
+const upTo = (v, a) => a.find(x => x >= v) || a[a.length - 1];
+const AMPACITY = [[24, 2], [22, 3], [20, 5], [18, 7], [16, 10], [14, 15], [12, 20], [10, 30], [8, 40], [6, 55]];
+const awgFor = amps => { for (const [a, c] of AMPACITY) if (c >= amps) return a; return 4; };
+function wiringParts() {
+  const r = S.r, P = S.P, A = r.A, R = r.R, g = r.geo, Voc = P.supply.Voc, Ipk = Math.max(A.I, R.I), Irms = Math.max(A.Irms, R.Irms);
+  const ibus = Math.max(A.Ibus, R.Ibus), fuse = upTo(1.5 * ibus, STD.fuse), vds = upTo(1.5 * Voc, STD.vds), tvs = upTo(1.15 * Voc, STD.tvs);
+  const cap = upTo(100 * Irms, STD.cap), capV = upTo(1.5 * Voc, STD.capV), rsh = P.drive.Rsh, vs = Ipk * rsh;
+  const gainWant = 1.65 / (1.2 * Ipk * rsh), gain = [...STD.gain].reverse().find(x => x <= gainWant) || 20;
+  return { A, R, g, Voc, Ipk, Irms, ibus, fuse, vds, tvs, cap, capV, rsh, vs, gain, gainWant, id: Math.ceil(2 * Irms * 1.5), harness: awgFor(1.25 * Math.max(Irms, ibus)), leads: awgFor(1.25 * Irms), pshunt: Irms * Irms * rsh, fsw: P.drive.fpwm };
+}
+const IND = (x0, x1, y) => { const r = (x1 - x0) / 8; let d = `M${x0} ${y}`; for (let i = 0; i < 4; i++) d += `a${r} ${r} 0 0 1 ${2 * r} 0`; return d; };
+function schematicSVG() {
+  const Q = wiringParts(), P = S.P, single = Q.g.nw === 1;
+  const box = (x, y, w, h, t1, t2, t3) => `<rect class="box" x="${x}" y="${y}" width="${w}" height="${h}" rx="5"/><text class="lb b" x="${x + w / 2}" y="${y + (t2 ? 19 : h / 2 + 4)}" text-anchor="middle">${t1}</text>${t2 ? `<text class="sm" x="${x + w / 2}" y="${y + 34}" text-anchor="middle">${t2}</text>` : ''}${t3 ? `<text class="sm" x="${x + w / 2}" y="${y + 48}" text-anchor="middle">${t3}</text>` : ''}`;
+  const fet = (cx, top, id) => `<rect class="box" x="${cx - 20}" y="${top}" width="40" height="50" rx="4"/><text class="lb b" x="${cx}" y="${top + 24}" text-anchor="middle">${id}</text><text class="sm" x="${cx}" y="${top + 39}" text-anchor="middle">N-FET</text>`;
+  const gate = (x1, x2, y, name) => `<path class="wire sig" d="M${x1} ${y} H${x2}"/><text class="tg" x="${x2 + (x2 < x1 ? -4 : 4)}" y="${y + 4}" text-anchor="${x2 < x1 ? 'end' : 'start'}">${name}</text>`;
+  let s = '';
+  s += `<path class="wire pwr" d="M70 190 H800"/><path class="wire gnd" d="M70 440 H800"/>`;
+  // source
+  s += `<path class="wire pwr" d="M70 190 V272"/><path class="wire gnd" d="M70 302 V440"/><path class="wire" d="M52 272 H88 M60 282 H80 M52 292 H88 M60 302 H80"/>`;
+  s += `<text class="lb b" x="100" y="340">${esc(P.supply.name)}</text><text class="sm" x="100" y="356">${fx(Q.Voc, 0)} V, ${fx(P.supply.Rsrc * 1e3, 0)} mΩ</text><text class="sm" x="96" y="184">+</text><text class="sm" x="96" y="432">−</text>`;
+  s += `<path class="wire gnd" d="M70 440 V452 M58 452 H82 M63 458 H77 M67 464 H73"/>`;
+  // fuse, cap, TVS
+  s += box(130, 177, 66, 26, 'F1', '', '') + `<text class="sm" x="163" y="170" text-anchor="middle">${Q.fuse} A fuse</text>`;
+  s += `<path class="wire" d="M222 190 V285 M207 285 H237 M207 295 H237 M222 295 V440"/><circle class="dot" cx="222" cy="190" r="3"/><circle class="dot" cx="222" cy="440" r="3"/><text class="lb b" x="198" y="278" text-anchor="end">C1</text><text class="sm" x="198" y="292" text-anchor="end">${Q.cap} µF</text><text class="sm" x="198" y="306" text-anchor="end">${Q.capV} V</text>`;
+  s += `<path class="wire" d="M282 190 V275 M272 275 H292 L282 295 Z M272 295 H292 M282 295 V440"/><circle class="dot" cx="282" cy="190" r="3"/><circle class="dot" cx="282" cy="440" r="3"/><text class="lb b" x="262" y="278" text-anchor="end">D1 TVS</text><text class="sm" x="262" y="292" text-anchor="end">${Q.tvs} V</text>`;
+  // bridge
+  for (const [cx, ids] of [[400, ['Q1', 'Q2']], [800, ['Q3', 'Q4']]]) {
+    s += `<path class="wire pwr" d="M${cx} 190 V215"/><path class="wire" d="M${cx} 265 V335"/><path class="wire gnd" d="M${cx} 385 V440"/><circle class="dot" cx="${cx}" cy="190" r="3"/><circle class="dot" cx="${cx}" cy="300" r="3"/><circle class="dot" cx="${cx}" cy="440" r="3"/>`;
+    s += fet(cx, 215, ids[0]) + fet(cx, 335, ids[1]);
+  }
+  s += gate(380, 352, 240, 'HO_A') + gate(380, 352, 360, 'LO_A') + gate(820, 848, 240, 'HO_B') + gate(820, 848, 360, 'LO_B');
+  s += `<text class="sm" x="352" y="258" text-anchor="end">via 10 Ω</text><text class="sm" x="352" y="378" text-anchor="end">via 10 Ω</text><text class="sm" x="848" y="258">via 10 Ω</text><text class="sm" x="848" y="378">via 10 Ω</text>`;
+  s += `<text class="sm" x="408" y="292">OUT_A</text><text class="sm" x="808" y="292">OUT_B</text>`;
+  // coil chain
+  s += `<path class="wire coil" d="M400 300 H480 M540 300 H${single ? 600 : 570}"/>`;
+  s += box(480, 288, 60, 24, 'Rsh', '', '') + `<text class="sm" x="510" y="326" text-anchor="middle">${fx(Q.rsh * 1e3, 0)} mΩ, ${fx(Q.pshunt, 1)} W</text>`;
+  if (single) {
+    s += `<path class="wire coil thick" d="${IND(600, 740, 300)}"/><path class="wire coil" d="M740 300 H800"/><text class="lb b" x="670" y="258" text-anchor="middle">COIL</text><text class="sm" x="670" y="272" text-anchor="middle">${fx(Q.g.N, 0)} turns, AWG ${fx(Q.g.awg, 0)}</text>`;
+    s += `<text class="sm" x="670" y="335" text-anchor="middle">${fx(Q.g.R20 * 1e3, 0)} mΩ, ${fx(S.r.ind.L * 1e6, 0)} µH</text>`;
+  } else {
+    s += `<path class="wire coil thick" d="${IND(570, 670, 300)}"/><path class="wire coil" d="M670 300 H695"/><circle class="dot orange" cx="682" cy="300" r="3.5"/><path class="wire coil thick" d="${IND(695, 790, 300)}"/><path class="wire coil" d="M790 300 H800"/>`;
+    s += `<text class="lb b" x="620" y="266" text-anchor="middle">WING 1</text><text class="sm" x="620" y="280" text-anchor="middle">clockwise</text><text class="lb b" x="742" y="266" text-anchor="middle">WING 2</text><text class="sm" x="742" y="280" text-anchor="middle">counter-clockwise</text>`;
+    s += `<text class="sm" x="640" y="336" text-anchor="middle">${fx(Q.g.N, 0)} turns each, AWG ${fx(Q.g.awg, 0)}</text><text class="sm" x="640" y="350" text-anchor="middle">in series: ${fx(Q.g.R20 * 1e3, 0)} mΩ, ${fx(S.r.ind.L * 1e6, 0)} µH</text>`;
+  }
+  // sense amp
+  s += `<path class="wire sig" d="M492 312 V500 M528 312 V500"/>` + box(460, 500, 100, 52, 'Sense amp', `gain ${Q.gain}`, 'ADC mid-rail') + `<path class="wire sig" d="M560 526 H590"/><text class="tg" x="594" y="530">ISENSE</text>`;
+  // NTC note
+  s += `<path class="wire sig dash" d="M735 390 V312"/><rect class="box" x="575" y="390" width="200" height="40" rx="5"/><text class="sm" x="675" y="406" text-anchor="middle">NTC 10 k on the coil: TCOIL</text><text class="sm" x="675" y="421" text-anchor="middle">NTC 10 k under cover: TSKIN</text>`;
+  // controller
+  s += `<rect class="box" x="60" y="20" width="230" height="130" rx="6"/><text class="lb b" x="75" y="42">ESP32-S3</text><text class="sm" x="75" y="58">MCPWM, 20 kHz, dead time 300 ns</text><text class="sm" x="75" y="73">ADC1 for sense inputs</text><text class="sm" x="75" y="88">3.3 V logic, USB powered</text>`;
+  s += `<text class="tg" x="284" y="46" text-anchor="end">PWM_A</text><text class="tg" x="284" y="71" text-anchor="end">EN</text><text class="tg" x="284" y="96" text-anchor="end">PWM_B</text>`;
+  s += `<path class="wire sig" d="M290 50 H340 M290 75 H340 M290 100 H315 V170 H790 V110"/>`;
+  s += box(340, 30, 120, 80, 'Gate driver A', 'half-bridge', '12 V supply') + box(740, 30, 120, 80, 'Gate driver B', 'half-bridge', '12 V supply');
+  s += `<path class="wire sig" d="M720 75 H740"/><text class="tg" x="716" y="79" text-anchor="end">EN</text>`;
+  s += `<path class="wire sig" d="M365 110 V140 M435 110 V140"/><text class="tg" x="365" y="153" text-anchor="middle">HO_A</text><text class="tg" x="435" y="153" text-anchor="middle">LO_A</text>`;
+  s += `<path class="wire sig" d="M765 110 V140 M835 110 V140"/><text class="tg" x="765" y="153" text-anchor="middle">HO_B</text><text class="tg" x="835" y="153" text-anchor="middle">LO_B</text>`;
+  // legend
+  s += `<path class="wire pwr" d="M60 586 H90"/><text class="sm" x="96" y="590">power</text><path class="wire gnd" d="M160 586 H190"/><text class="sm" x="196" y="590">ground</text><path class="wire sig" d="M270 586 H300"/><text class="sm" x="306" y="590">signal</text><path class="wire coil thick" d="M370 586 H400"/><text class="sm" x="406" y="590">coil current</text>`;
+  s += `<text class="sm" x="60" y="610">Each gate also gets a 10 kΩ pull-down to its source. Bootstrap: 1 µF and a fast diode per half-bridge.</text><text class="sm" x="60" y="626">Add 100 nF at each driver and 10 µF ceramic at each half-bridge.</text>`;
+  return `<svg class="wd" viewBox="0 0 900 640" role="img" aria-label="Power and drive schematic">${s}</svg>`;
+}
+function coilSVG() {
+  const r = S.r, P = S.P, g = r.geo, single = g.nw === 1, mm = v => v * 1e3;
+  const Wmm = single ? mm(g.wx) : mm(2 * g.wx + P.gap), Lmm = mm(g.ly), k = Math.min(640 / Wmm, 230 / Lmm), cx = 450, y0 = 54;
+  const X = v => cx + v * k, Y = v => y0 + v * k;
+  let s = '<defs><marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="ah"/></marker></defs>';
+  const wings = single ? [{ x0: -mm(g.wx) / 2, x1: mm(g.wx) / 2, ccw: true }] : [{ x0: -(Wmm / 2), x1: -(Wmm / 2) + mm(g.wx), ccw: false }, { x0: Wmm / 2 - mm(g.wx), x1: Wmm / 2, ccw: true }];
+  const bm = mm(g.b), nT = Math.min(10, Math.max(2, Math.round(g.N)));
+  wings.forEach((w, wi) => {
+    s += `<rect class="wing" x="${X(w.x0)}" y="${Y(0)}" width="${(w.x1 - w.x0) * k}" height="${Lmm * k}" rx="4"/>`;
+    for (let i = 0; i < nT; i++) { const d = bm * (i + 0.5) / nT; s += `<rect class="turn" x="${X(w.x0 + d)}" y="${Y(d)}" width="${(w.x1 - w.x0 - 2 * d) * k}" height="${(Lmm - 2 * d) * k}" rx="2"/>`; }
+    s += `<rect class="band" x="${X(w.x0 + bm)}" y="${Y(bm)}" width="${(w.x1 - w.x0 - 2 * bm) * k}" height="${(Lmm - 2 * bm) * k}"/>`;
+    const mx = (w.x0 + w.x1) / 2, ty = Y(bm / 2);
+    s += `<path class="cur" marker-end="url(#arw)" d="M${X(mx + (w.ccw ? 18 : -18))} ${ty} H${X(mx + (w.ccw ? -18 : 18))}"/>`;
+    s += `<text class="lb b halo" x="${X(mx)}" y="${Y(Lmm * 0.38)}" text-anchor="middle">${single ? 'COIL' : 'WING ' + (wi + 1)}</text><text class="sm halo" x="${X(mx)}" y="${Y(Lmm * 0.38) + 14}" text-anchor="middle">${fx(g.N, 0)} turns, ${w.ccw ? 'counter-clockwise' : 'clockwise'}</text>`;
+  });
+  if (!single) {
+    const gx = mm(P.gap) / 2; for (const sg of [-1, 1]) s += `<path class="cur red" marker-end="url(#arw)" d="M${X(sg * gx + (sg > 0 ? mm(g.b) * 0.5 : -mm(g.b) * 0.5))} ${Y(Lmm * 0.3)} V${Y(Lmm * 0.7)}"/>`;
+    s += `<text class="sm" x="${X(0)}" y="${Y(Lmm) + 14}" text-anchor="middle">currents run the same way at the centre edges, so their fields add</text>`;
+    const jy = Y(Lmm * 0.7); s += `<path class="wire coil dash" d="M${X(wings[0].x0 + mm(g.wx) / 2)} ${jy} H${X(wings[1].x0 + mm(g.wx) / 2)}"/><circle class="dot orange" cx="${X(wings[0].x0 + mm(g.wx) / 2)}" cy="${jy}" r="4"/><circle class="dot orange" cx="${X(wings[1].x0 + mm(g.wx) / 2)}" cy="${jy}" r="4"/><text class="sm orange" x="${X(0)}" y="${jy + 16}" text-anchor="middle">J: join the two inner ends (insulated)</text>`;
+    s += `<path class="wire coil" d="M${X(wings[0].x0)} ${Y(Lmm * 0.1)} H${X(wings[0].x0) - 34}"/><text class="tg" x="${X(wings[0].x0) - 38}" y="${Y(Lmm * 0.1) + 4}" text-anchor="end">A: outer end, to OUT_A</text>`;
+    s += `<path class="wire coil" d="M${X(wings[1].x1)} ${Y(Lmm * 0.1)} H${X(wings[1].x1) + 34}"/><text class="tg" x="${X(wings[1].x1) + 38}" y="${Y(Lmm * 0.1) + 4}">B: outer end, to OUT_B</text>`;
+  } else {
+    s += `<path class="wire coil" d="M${X(wings[0].x0)} ${Y(Lmm * 0.1)} H${X(wings[0].x0) - 34}"/><text class="tg" x="${X(wings[0].x0) - 38}" y="${Y(Lmm * 0.1) + 4}" text-anchor="end">A: outer end, to OUT_A</text>`;
+    const jy = Y(Lmm * 0.7); s += `<path class="wire coil dash" d="M${X(0)} ${jy} H${X(wings[0].x1) + 34}"/><circle class="dot orange" cx="${X(0)}" cy="${jy}" r="4"/><text class="tg" x="${X(wings[0].x1) + 38}" y="${jy + 4}">B: inner end, to OUT_B</text>`;
+  }
+  // dimensions
+  const dimY = Y(Lmm) + 34; const dim = (xa, xb, y, t) => `<path class="dim" marker-start="url(#arw)" marker-end="url(#arw)" d="M${xa} ${y} H${xb}"/><text class="sm" x="${(xa + xb) / 2}" y="${y - 5}" text-anchor="middle">${t}</text>`;
+  if (single) s += dim(X(wings[0].x0), X(wings[0].x1), dimY, `${fx(mm(g.wx), 0)} mm`);
+  else s += dim(X(wings[1].x0), X(wings[1].x1), dimY, `${fx(mm(g.wx), 0)} mm`) + dim(X(wings[0].x0), X(wings[0].x1), dimY, `${fx(mm(g.wx), 0)} mm`) + dim(X(-mm(P.gap) / 2), X(mm(P.gap) / 2), dimY + 22, `gap ${fx(mm(P.gap), 0)} mm`);
+  const rx = X(wings[wings.length - 1].x1) + 20; s += `<path class="dim" marker-start="url(#arw)" marker-end="url(#arw)" d="M${rx} ${Y(0)} V${Y(Lmm)}"/><text class="sm" x="${rx + 6}" y="${Y(Lmm / 2)}">${fx(Lmm, 0)} mm</text>`;
+  s += `<text class="sm" x="${X(wings[0].x0) + 4}" y="${Y(0) - 8}">band ${fx(bm, 0)} mm, thickness ${fx(mm(g.t), 1)} mm</text>`;
+  // side view
+  const base = 560, rise = mm(g.wx) * Math.sin(g.th), zT = mm(r.zT) , ks = Math.min(k, 200 / (zT + rise + 10)), sx = v => cx + v * ks, sy = z => base - z * ks;
+  const off = mm(g.t) / 2 + mm(P.standoff), ct = Math.cos(g.th), tn = Math.tan(g.th), gh = single ? -mm(g.wx) : mm(P.gap);
+  const skin = x => { const ax = Math.abs(x) - gh / 2; return single || ax <= 0 ? off : ax * tn + off / ct; };
+  const xl = single ? -mm(g.wx) / 2 : -(mm(P.gap) / 2 + mm(g.wx) * ct), xr = -xl, pts = []; for (let i = 0; i <= 40; i++) { const x = xl + (xr - xl) * i / 40; pts.push(`${sx(x)} ${sy(skin(x))}`); }
+  s += `<text class="lb b" x="60" y="${base - 214}">Side view, to scale</text>`;
+  s += `<path class="tissue" d="M${sx(xl - 30)} ${sy(skin(xl))} L${pts.join(' L')} L${sx(xr + 30)} ${sy(skin(xr))} V${sy(zT + 30)} H${sx(xl - 30)} Z"/><path class="wire skin" d="M${pts.join(' L')}"/>`.replace('M' + pts[0], 'M' + pts[0]);
+  const tw = Math.max(3, mm(g.t) * ks);
+  if (single) s += `<path class="cu" style="stroke-width:${tw}px" d="M${sx(xl)} ${sy(0)} H${sx(xr)}"/>`;
+  else for (const sg of [-1, 1]) s += `<path class="cu" style="stroke-width:${tw}px" d="M${sx(sg * gh / 2)} ${sy(0)} L${sx(sg * (gh / 2 + mm(g.wx) * ct))} ${sy(mm(g.wx) * Math.sin(g.th))}"/>`;
+  s += `<circle class="tgt" cx="${sx(0)}" cy="${sy(zT)}" r="6"/><text class="sm" x="${sx(0) + 12}" y="${sy(zT) + 4}">target, ${fx(mm(P.depth), 0)} mm below skin</text>`;
+  s += `<path class="dim" marker-start="url(#arw)" marker-end="url(#arw)" d="M${sx(xl) - 20} ${sy(0)} V${sy(off)}"/><text class="sm" x="${sx(xl) - 26}" y="${sy(off / 2) + 4}" text-anchor="end">cover ${fx(mm(P.standoff), 0)} mm</text>`;
+  s += single ? `<text class="sm" x="${sx(xr) + 10}" y="${sy(0) + 4}">flat, ${fx(mm(g.t), 1)} mm thick</text>` : `<text class="sm" x="${sx(xr) + 10}" y="${sy(rise) + 4}">bend ${fx(g.th * 180 / Math.PI, 1)}°, wing tip ${fx(rise, 0)} mm up</text>`;
+  s += `<path class="wire gnd" d="M${sx(xl - 30)} ${sy(-6)} H${sx(xr + 30)}"/><text class="sm" x="${sx(xr + 30)}" y="${sy(-6) + 14}" text-anchor="end">bed or backrest surface</text>`;
+  return `<svg class="wd" viewBox="0 0 900 ${base + 30}" role="img" aria-label="Coil construction, top and side views">${s}</svg>`;
+}
+TABS.wiring = {
+  build(h) {
+    h.innerHTML = card('Power and drive schematic', '<div class="wdwrap" id="wdSch"></div>', '', 'Wired from your numbers: part values change with current, voltage and coil. An H-bridge drives sine, triangle or half-sine; the controller sets the shape.') +
+      card('Coil construction and connection', '<div class="wdwrap" id="wdCoil"></div><div id="wdTest"></div>') +
+      card('Parts and values', '<div class="tablewrap" id="wdParts"></div>') +
+      card('Cut list', '<div id="wdCut"></div>') +
+      card('Controller connections', '<div class="tablewrap" id="wdPins"></div>');
+  },
+  update() {
+    const Q = wiringParts(), P = S.P, g = Q.g, single = g.nw === 1;
+    $('#wdSch').innerHTML = schematicSVG(); $('#wdCoil').innerHTML = coilSVG();
+    $('#wdTest').innerHTML = single ? '<p class="note">Wind one flat spiral, outside end to A and inside end to B. Reversing A and B only reverses the field direction.</p>' : '<p class="note"><b>Check the polarity before sealing it up.</b> With a small current (1 to 2 A), hold a compass or a small magnet at the hinge: the two centre edges should pull the same way. If the field cancels instead, swap the two leads of one wing.</p>';
+    const rows = [
+      ['Source', `${esc(P.supply.name)}`, `${fx(Q.Voc, 0)} V, ${fx(Q.ibus, 1)} A average at the worst mode`],
+      ['F1 fuse', `${Q.fuse} A`, 'Fast-blow or automotive blade, on the positive lead at the source'],
+      ['C1 bulk capacitor', `${Q.cap} µF, ${Q.capV} V or higher`, 'Low-ESR electrolytic, plus 10 µF ceramic at each half-bridge'],
+      ['D1 TVS', `${Q.tvs} V standoff, 600 W or more`, 'Across the bus, catches coil and cable spikes'],
+      ['Q1 to Q4', `N-channel, ${Q.vds} V or more, ${Math.max(Q.id, 10)} A continuous, ${fx(P.drive.Rds * 1e3, 0)} mΩ or less`, `Pulsed rating at least ${fx(3 * Q.Ipk, 0)} A. TO-220 or D2PAK with a small heatsink`],
+      ['Gate drivers (2)', 'Half-bridge, 12 V gate supply', 'IR2104 class for these voltages; add a 12 V buck from the bus'],
+      ['Gate resistors', '10 Ω each, 10 kΩ gate-source pull-down', 'Slows the edges and holds the FETs off at power-up'],
+      ['Rsh shunt', `${fx(Q.rsh * 1e3, 0)} mΩ, ${Math.max(1, Math.ceil(Q.pshunt * 2))} W, 1% or better`, `${fx(Q.vs * 1e3, 0)} mV at ${fx(Q.Ipk, 1)} A. Four-terminal type if available`],
+      ['Sense amp', `Bidirectional, gain about ${Q.gain}`, `Output centred at 1.65 V so ±${fx(Q.Ipk, 0)} A fits the ADC (ideal gain ${fx(Q.gainWant, 0)})`],
+      ['Thermistors (2)', '10 k NTC with 10 k pull-up to 3.3 V', 'One bonded to the coil, one under the cover'],
+      ['Coil wire', `AWG ${fx(g.awg, 0)} enamelled, ${fx(g.lw * 1.1, 0)} m`, `${fx(g.lw, 1)} m wound plus 10% for leads and trimming`],
+      ['Harness wire', `AWG ${Q.harness} for source and bridge, AWG ${Q.leads} for coil leads`, 'Stranded silicone insulation, rated for the current with margin']
+    ];
+    $('#wdParts').innerHTML = `<table><thead><tr><th class="l">Part</th><th class="l">Value</th><th class="l">Notes</th></tr></thead><tbody>${rows.map(r => `<tr><td class="l"><b>${esc(r[0])}</b></td><td class="l wrap">${esc(r[1])}</td><td class="l wrap">${esc(r[2])}</td></tr>`).join('')}</tbody></table>`;
+    const npl = Math.max(1, Math.floor(g.b / g.dI)), layers = Math.ceil(g.N / npl);
+    $('#wdCut').innerHTML = `<dl class="dl">${[
+      ['Wire to buy', `${fx(g.lw * 1.1, 0)} m of AWG ${fx(g.awg, 0)} (${fx(g.d * 1e3, 2)} mm), about ${fx(g.mcu * 1.1, 2)} kg`],
+      [single ? 'Winding' : 'Each wing', `${fx(g.N, 0)} turns, ${fx(g.N * g.lturn, 1)} m, ${npl} per layer over ${layers} layer${layers > 1 ? 's' : ''}`],
+      ['Former', `${fx(g.wx * 1e3, 0)} × ${fx(g.ly * 1e3, 0)} mm outside, winding band ${fx(g.b * 1e3, 0)} mm, open centre ${fx((g.wx - 2 * g.b) * 1e3, 0)} × ${fx((g.ly - 2 * g.b) * 1e3, 0)} mm`],
+      ['Layout', single ? 'One flat coil, no hinge' : `Two wings ${fx(P.gap * 1e3, 0)} mm apart, each tilted ${fx(g.th * 180 / Math.PI, 1)}° toward the patient`],
+      ['Resistance', `${fx(g.R20 * 1e3, 0)} mΩ cold. Measure it when done; it should match within about 5%`],
+      ['Inductance', `${fx(S.r.ind.L * 1e6, 0)} µH expected`]
+    ].map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`;
+    const pins = [['PWM_A', 'GPIO4', 'Gate driver A input'], ['PWM_B', 'GPIO5', 'Gate driver B input'], ['EN', 'GPIO6', 'Both driver shutdown pins (high = run)'], ['ISENSE', 'GPIO1 (ADC1)', 'Sense amp output'], ['TCOIL', 'GPIO2 (ADC1)', 'Coil thermistor divider'], ['TSKIN', 'GPIO3 (ADC1)', 'Cover thermistor divider'], ['VBUS', 'GPIO7 (ADC1)', 'Bus voltage through a 10:1 divider'], ['3V3 / GND', 'power', 'Thermistor pull-ups and sense amp supply']];
+    $('#wdPins').innerHTML = `<table><thead><tr><th class="l">Signal</th><th class="l">ESP32-S3 pin</th><th class="l">Connects to</th></tr></thead><tbody>${pins.map(p => `<tr><td class="l"><b>${p[0]}</b></td><td class="l">${p[1]}</td><td class="l wrap">${p[2]}</td></tr>`).join('')}</tbody></table>`;
+  }
+};
+
 /* ===================== part 5: trade-offs, equations, build sheet, wiring ===================== */
 
 /* ---------------- trade-offs ---------------- */
@@ -1608,7 +1897,7 @@ function sweepSoon() { clearTimeout(sweepTimer); sweepTimer = setTimeout(runTrad
 function runTrade() {
   if (!S.sol) return;
   const key = S.sweep.axis, ax = AXES[key], P0 = clonePSafe(S.P);
-  const jobs = ax.vals.map((v, k) => { const P = clonePSafe(P0); ax.set(P, v); return { P, warm: k > 0, opt: Object.assign({ lock: S.lock.slice(), maxOuter: 8, maxInner: 60 }, k === 0 ? { starts: [S.sol.u], lam0: S.sol.lam } : {}) }; });
+  const jobs = ax.vals.map((v, k) => { const P = clonePSafe(P0); ax.set(P, v); return { P, warm: k > 0, opt: Object.assign({ lock: lockFor(P), maxOuter: 8, maxInner: 60 }, k === 0 ? { starts: [S.sol.u], lam0: S.sol.lam } : {}) }; });
   S.sweep.busy = true; S.sweep.stale = false; S.sweep.data = { key, pts: [] }; const data = S.sweep.data;
   if (TABS.trade.built) TABS.trade.paintSweep();
   batchRunner.start({ type: 'batch', jobs }, (k, res) => { let ev = null; try { ev = C.evaluate(res.x, jobs[k].P).A; } catch (e) { } data.pts.push({ v: ax.vals[k], res, ev }); if (S.tab === 'trade') TABS.trade.paintSweep(); }).then(() => {
@@ -1618,7 +1907,7 @@ function runTrade() {
 }
 function runSupplies() {
   const keys = ['wall12', 'wall24', 'bat24', 'bat48'], base = clonePSafe(S.P);
-  const jobs = keys.map(k => { const P = clonePSafe(base); P.supply = Object.assign({}, C.SUPPLIES[k]); return { P, opt: { lock: S.lock.slice(), starts: coldStarts(2).concat([S.sol.u]), maxOuter: 8, maxInner: 60 } }; });
+  const jobs = keys.map(k => { const P = clonePSafe(base); P.supply = Object.assign({}, C.SUPPLIES[k]); return { P, opt: { lock: lockFor(P), starts: coldStarts(2).concat([S.sol.u]), maxOuter: 8, maxInner: 60 } }; });
   S.supplyCmp.busy = true; S.supplyCmp.stale = false; S.supplyCmp.data = keys.map(k => ({ key: k, res: null }));
   batchRunner.start({ type: 'batch', jobs }, (k, res) => { S.supplyCmp.data[k].res = res; if (S.tab === 'trade') TABS.trade.paintSupplies(); }).then(() => { S.supplyCmp.busy = false; if (S.tab === 'trade') TABS.trade.paintSupplies(); }).catch(e => { if (e !== 'cancelled') S.supplyCmp.busy = false; });
 }
@@ -1691,13 +1980,13 @@ function eqList() {
     { g: 'geo', t: 'Copper mass and profile height', e: 'm=\\rho_{Cu}\\,\\ell_w A_{Cu},\\qquad H=t+w\\sin\\theta', v: `m = ${fx(g.mcu, 2)} kg (about $${fx(g.mcu * P.price, 0)} of wire), H = ${fx(r.prof * 1e3, 1)} mm at ${fx(th, 1)}° bend`, n: 'The raised edge of each bent wing sets the profile you lie on.' },
     { g: 'field', t: 'Field of one straight segment (Biot–Savart)', e: '\\vec B=\\frac{\\mu_0 I}{4\\pi\\,d_\\perp}\\left(\\sin\\alpha_2-\\sin\\alpha_1\\right)\\,\\hat t\\times\\hat d', v: `Summed over ${r.S ? 'all' : ''} winding filaments of both wings at the target`, n: 'Exact for a finite straight wire. The coil is thousands of such segments, so there is no far-field or loop approximation.' },
     { g: 'field', t: 'Flux at the target', e: 'B_T=k_B\\,I,\\qquad k_B=\\left|\\sum_{\\mathrm{seg}}\\vec b_{seg}(0,0,z_T)\\right|', v: `z_T = ${fx(r.zT * 100, 1)} cm, k_B = ${fx(r.kB * 1e3, 3)} mT/A, I = ${fx(res.I, 1)} A → B = ${fx(res.Bpk * 1e3, 2)} mT`, n: 'Linear in current, so the optimizer only needs k_B from geometry and I from the heat and voltage limits.' },
-    { g: 'field', t: 'Amps against turns', e: 'I=\\frac{B_T}{k_B},\\quad k_B\\approx N\\,k_1,\\quad P_{coil}\\propto\\frac{(N I)^{2}}{m_{Cu}}', v: `${fx(g.N, 1)} turns × ${fx(res.I, 1)} A = ${fx(g.N * res.I, 0)} ampere-turns per wing for ${fx(res.Bpk * 1e3, 2)} mT; heat ${fx(res.Pcoil, 1)} W from ${fx(g.mcu, 2)} kg of copper`, n: 'Flux needs ampere-turns, and heat is set by ampere-turns and copper mass, not by amps alone. Fewer amps means more turns, which raises inductance and the voltage you need. That is the amps, volts and heat tradeoff.' },
+    { g: 'field', t: 'Amps against turns', e: 'I=\\frac{B_T}{k_B},\\quad k_B\\approx N\\,k_1,\\quad P_{coil}\\propto\\frac{(N I)^{2}}{m_{Cu}}', v: `${fx(g.N, 1)} turns × ${fx(res.I, 1)} A = ${fx(g.N * res.I, 0)} ampere-turns per ${g.nw === 1 ? 'coil' : 'wing'} for ${fx(res.Bpk * 1e3, 2)} mT; heat ${fx(res.Pcoil, 1)} W from ${fx(g.mcu, 2)} kg of copper`, n: 'Flux needs ampere-turns, and heat is set by ampere-turns and copper mass, not by amps alone. Fewer amps means more turns, which raises inductance and the voltage you need. That is the amps, volts and heat tradeoff.' },
     { g: 'field', t: 'Recovery current', e: 'I_r=\\frac{B_r}{k_B}', v: `${fx(P.recov.Bpk * 1e3, 2)} mT / ${fx(r.kB * 1e3, 3)} mT/A = ${fx(r.Ir, 2)} A`, n: 'Recovery flux is a setting, not a variable, so its current follows from the geometry.' },
     { g: 'efield', t: 'Faraday’s law', e: '\\vec E=-\\frac{\\partial \\vec A}{\\partial t}-\\nabla\\varphi\\ \\approx\\ -\\frac{\\partial \\vec A}{\\partial t}', v: 'Half-space tissue, tangential component, no charge build-up term', n: 'A conservative simplification: surface charge on real tissue boundaries redistributes the field, so verify with FEM before relying on it.' },
     { g: 'efield', t: 'Vector potential of a segment', e: '\\vec A=\\frac{\\mu_0 I}{4\\pi}\\,\\hat t\\left[\\mathrm{asinh}\\frac{s_2}{d_\\perp}-\\mathrm{asinh}\\frac{s_1}{d_\\perp}\\right]', v: `Peak over the skin surface: a_E = ${eng(r.aE, 'Wb/m/A', 3)}`, n: 'Closed form, summed over all segments. The maximum is searched on a grid across the skin under the coil.' },
     { g: 'efield', t: 'Peak induced E-field', e: 'E_{pk}=\\kappa_{slew}\\,f\\,a_E\\,I', v: `${fx(W.slew, 2)} × ${M.f} Hz × ${eng(r.aE, '', 3)} × ${fx(res.I, 1)} A = ${fx(res.Epk, 2)} V/m (reference ${fx(P.Elim, 2)})`, n: 'κ is the waveform’s peak slew: 2π for a sine, 4 for a triangle. Slower waveforms and lower frequency cut E at the same flux.' },
     { g: 'ind', t: 'Neumann mutual inductance', e: 'M_{ij}=\\frac{\\mu_0}{4\\pi}\\oint\\!\\oint\\frac{d\\vec\\ell_i\\cdot d\\vec\\ell_j}{|\\vec r_i-\\vec r_j|}', v: 'Parallel-segment pairs use the closed form Ψ(u) = u·asinh(u/d) − √(u²+d²)', n: 'Evaluated pair by pair for every segment, including the coupling between the two wings.' },
-    { g: 'ind', t: 'Total inductance', e: 'L=2L_w+2M_{12}', v: `L_w = ${fx(r.ind.Lw * 1e6, 1)} µH, M₁₂ = ${fx(r.ind.M12 * 1e6, 1)} µH → L = ${fx(r.ind.L * 1e6, 1)} µH`, n: 'The wings are wound in opposite sense for the figure-8 field, which makes the series coupling add (M₁₂ > 0).' },
+    { g: 'ind', t: 'Total inductance', e: g.nw === 1 ? 'L=L_w' : 'L=2L_w+2M_{12}', v: g.nw === 1 ? `Single coil: L = ${fx(r.ind.L * 1e6, 1)} µH` : `L_w = ${fx(r.ind.Lw * 1e6, 1)} µH, M₁₂ = ${fx(r.ind.M12 * 1e6, 1)} µH → L = ${fx(r.ind.L * 1e6, 1)} µH`, n: 'The wings are wound in opposite sense for the figure-8 field, which makes the series coupling add (M₁₂ > 0).' },
     { g: 'drive', t: 'Coil voltage', e: 'v=R\\,i+L\\frac{di}{dt},\\qquad V_{pk}=I\\sqrt{R^{2}+(2\\pi f L)^{2}}\\ (\\mathrm{sine})', v: `R = ${fx((res.Rhot + res.Rdrive) * 1e3, 0)} mΩ incl. drive, L = ${fx(r.ind.L * 1e6, 0)} µH, f = ${M.f} Hz → V = ${fx(res.Vreq, 2)} V`, n: 'At 100 Hz the inductive part is usually small for a low-turn coil, which is why heat rather than voltage limits the design.' },
     { g: 'drive', t: 'Voltage available from the source', e: 'V_{av}=D_{max}\\left(V_{oc}-R_{src}\\,I_{bus}\\right),\\quad I_{bus}\\approx I\\frac{V_{req}}{V_{oc}}', v: `0.${fx(P.drive.Dmax * 100, 0)} × (${fx(P.supply.Voc, 0)} − ${fx(P.supply.Rsrc * 1e3, 0)} mΩ × ${fx(res.Ibus, 1)} A) = ${fx(res.Vav, 1)} V`, n: 'The H-bridge cannot output the full bus voltage, and the source sags under load.' },
     { g: 'drive', t: 'Input power', e: 'P_{in}=\\delta\\,I_{rms}^{2}\\left(R_{coil}+R_{drive}\\right)+P_{sw},\\quad I_{rms}=\\kappa_{rms}I', v: `coil ${fx(res.Pcoil, 1)} W + drive ${fx(res.Pdrive, 1)} W + switching ${fx(res.Psw, 2)} W = ${fx(res.Pin, 1)} W`, n: 'Only the coil term heats the patient-side surface. Drive losses stay in the electronics.' },
@@ -1736,7 +2025,7 @@ function discreteCheck() {
 function runSnap() {
   const x = S.x, af = [Math.floor(x[3]), Math.ceil(x[3])].filter((v, i, a) => a.indexOf(v) === i), nf = [Math.floor(x[2]), Math.ceil(x[2])].filter((v, i, a) => a.indexOf(v) === i);
   const combos = []; for (const a of af) for (const n of nf) combos.push({ awg: Math.max(8, a), N: Math.max(2, n) });
-  const jobs = combos.map(c => { const lock = S.lock.slice(); lock[2] = c.N; lock[3] = c.awg; return { P: clonePSafe(S.P), opt: { lock, starts: [S.sol.u], lam0: S.sol.lam, maxOuter: 8, maxInner: 60 } }; });
+  const jobs = combos.map(c => { const lock = lockFor(S.P); lock[2] = c.N; lock[3] = c.awg; return { P: clonePSafe(S.P), opt: { lock, starts: [S.sol.u], lam0: S.sol.lam, maxOuter: 8, maxInner: 60 } }; });
   S.snap = { busy: true, rows: [], combos }; TABS.build.paintSnap();
   batchRunner.start({ type: 'batch', jobs }, (k, res) => { S.snap.rows[k] = { c: combos[k], res }; TABS.build.paintSnap(); }).then(() => { S.snap.busy = false; TABS.build.paintSnap(); }).catch(e => { if (e !== 'cancelled' && S.snap) S.snap.busy = false; });
 }
@@ -1761,13 +2050,13 @@ TABS.build = {
     const dc = discreteCheck(), rg = dc.rgd;
     const rows = [
       ['Wire', `AWG ${fx(g.awg, 1)}  (${fx(g.d * 1e3, 2)} mm bare, ${fx(g.dI * 1e3, 2)} mm with enamel)`],
-      ['Turns', `${fx(g.N, 1)} per wing  (${dc.N} when rounded: ${rg.npl} per layer × ${rg.Ld} layer${rg.Ld > 1 ? 's' : ''})`],
-      ['Wing', `${fx(g.wx * 1e3, 0)} mm wide × ${fx(g.ly * 1e3, 0)} mm long, winding band ${fx(g.b * 1e3, 0)} mm, thickness ${fx(g.t * 1e3, 1)} mm`],
-      ['Bend', `${fx(g.th * 180 / Math.PI, 1)}° per wing, ${fx(P.gap * 1e3, 0)} mm hinge gap, profile ${fx(r.prof * 1e3, 1)} mm`],
+      ['Turns', `${fx(g.N, 1)} per ${g.nw === 1 ? 'coil' : 'wing'}  (${dc.N} when rounded: ${rg.npl} per layer × ${rg.Ld} layer${rg.Ld > 1 ? 's' : ''})`],
+      [g.nw === 1 ? 'Coil' : 'Wing', `${fx(g.wx * 1e3, 0)} mm wide × ${fx(g.ly * 1e3, 0)} mm long, winding band ${fx(g.b * 1e3, 0)} mm, thickness ${fx(g.t * 1e3, 1)} mm`],
+      [g.nw === 1 ? 'Shape' : 'Bend', g.nw === 1 ? `flat single coil, profile ${fx(r.prof * 1e3, 1)} mm` : `${fx(g.th * 180 / Math.PI, 1)}° per wing, ${fx(P.gap * 1e3, 0)} mm hinge gap, profile ${fx(r.prof * 1e3, 1)} mm`],
       ['Current', `${fx(A.I, 1)} A peak acute (rms ${fx(A.Irms, 1)} A, budget ${fx(P.drive.Isw, 1)} A), ${fx(R.I, 1)} A peak recovery, ${fx(A.Ibus, 1)} A average from the source`],
       ['Copper', `${fx(g.lw, 1)} m total, ${fx(g.mcu, 2)} kg, about $${fx(g.mcu * P.price, 0)}`],
       ['Electrical', `${fx(g.R20 * 1e3, 0)} mΩ cold, ${fx(A.Rhot * 1e3, 0)} mΩ hot, ${fx(r.ind.L * 1e6, 0)} µH, current density ${fx(A.Irms / (g.Acu * 1e6), 1)} A/mm² rms`],
-      ['Footprint', `${fx((2 * g.wx + P.gap) * 1e3, 0)} × ${fx(g.ly * 1e3, 0)} mm`]
+      ['Footprint', `${fx((g.nw === 1 ? g.wx : 2 * g.wx + P.gap) * 1e3, 0)} × ${fx(g.ly * 1e3, 0)} mm`]
     ];
     $('#winding').innerHTML = '<dl class="dl">' + rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('') + '</dl>';
     this.paintSnap();
@@ -1806,7 +2095,7 @@ TABS.build = {
 };
 
 /* ---------------- tab registry, render, init ---------------- */
-const TAB_LIST = [['field', 'Field'], ['opt', 'Optimum'], ['lag', 'Lagrangian'], ['trade', 'Trade-offs'], ['eq', 'Equations'], ['build', 'Build sheet']];
+const TAB_LIST = [['field', 'Field'], ['opt', 'Optimum'], ['mine', 'My build'], ['lag', 'Lagrangian'], ['trade', 'Trade-offs'], ['eq', 'Equations'], ['build', 'Build sheet'], ['wiring', 'Wiring']];
 S.sweep.axis = 'Imax';
 function showTab(id) {
   S.tab = id; const t = TABS[id], host = $('#panel_' + id);

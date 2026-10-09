@@ -23,7 +23,7 @@ function sweepSoon() { clearTimeout(sweepTimer); sweepTimer = setTimeout(runTrad
 function runTrade() {
   if (!S.sol) return;
   const key = S.sweep.axis, ax = AXES[key], P0 = clonePSafe(S.P);
-  const jobs = ax.vals.map((v, k) => { const P = clonePSafe(P0); ax.set(P, v); return { P, warm: k > 0, opt: Object.assign({ lock: S.lock.slice(), maxOuter: 8, maxInner: 60 }, k === 0 ? { starts: [S.sol.u], lam0: S.sol.lam } : {}) }; });
+  const jobs = ax.vals.map((v, k) => { const P = clonePSafe(P0); ax.set(P, v); return { P, warm: k > 0, opt: Object.assign({ lock: lockFor(P), maxOuter: 8, maxInner: 60 }, k === 0 ? { starts: [S.sol.u], lam0: S.sol.lam } : {}) }; });
   S.sweep.busy = true; S.sweep.stale = false; S.sweep.data = { key, pts: [] }; const data = S.sweep.data;
   if (TABS.trade.built) TABS.trade.paintSweep();
   batchRunner.start({ type: 'batch', jobs }, (k, res) => { let ev = null; try { ev = C.evaluate(res.x, jobs[k].P).A; } catch (e) { } data.pts.push({ v: ax.vals[k], res, ev }); if (S.tab === 'trade') TABS.trade.paintSweep(); }).then(() => {
@@ -33,7 +33,7 @@ function runTrade() {
 }
 function runSupplies() {
   const keys = ['wall12', 'wall24', 'bat24', 'bat48'], base = clonePSafe(S.P);
-  const jobs = keys.map(k => { const P = clonePSafe(base); P.supply = Object.assign({}, C.SUPPLIES[k]); return { P, opt: { lock: S.lock.slice(), starts: coldStarts(2).concat([S.sol.u]), maxOuter: 8, maxInner: 60 } }; });
+  const jobs = keys.map(k => { const P = clonePSafe(base); P.supply = Object.assign({}, C.SUPPLIES[k]); return { P, opt: { lock: lockFor(P), starts: coldStarts(2).concat([S.sol.u]), maxOuter: 8, maxInner: 60 } }; });
   S.supplyCmp.busy = true; S.supplyCmp.stale = false; S.supplyCmp.data = keys.map(k => ({ key: k, res: null }));
   batchRunner.start({ type: 'batch', jobs }, (k, res) => { S.supplyCmp.data[k].res = res; if (S.tab === 'trade') TABS.trade.paintSupplies(); }).then(() => { S.supplyCmp.busy = false; if (S.tab === 'trade') TABS.trade.paintSupplies(); }).catch(e => { if (e !== 'cancelled') S.supplyCmp.busy = false; });
 }
@@ -106,13 +106,13 @@ function eqList() {
     { g: 'geo', t: 'Copper mass and profile height', e: 'm=\\rho_{Cu}\\,\\ell_w A_{Cu},\\qquad H=t+w\\sin\\theta', v: `m = ${fx(g.mcu, 2)} kg (about $${fx(g.mcu * P.price, 0)} of wire), H = ${fx(r.prof * 1e3, 1)} mm at ${fx(th, 1)}° bend`, n: 'The raised edge of each bent wing sets the profile you lie on.' },
     { g: 'field', t: 'Field of one straight segment (Biot–Savart)', e: '\\vec B=\\frac{\\mu_0 I}{4\\pi\\,d_\\perp}\\left(\\sin\\alpha_2-\\sin\\alpha_1\\right)\\,\\hat t\\times\\hat d', v: `Summed over ${r.S ? 'all' : ''} winding filaments of both wings at the target`, n: 'Exact for a finite straight wire. The coil is thousands of such segments, so there is no far-field or loop approximation.' },
     { g: 'field', t: 'Flux at the target', e: 'B_T=k_B\\,I,\\qquad k_B=\\left|\\sum_{\\mathrm{seg}}\\vec b_{seg}(0,0,z_T)\\right|', v: `z_T = ${fx(r.zT * 100, 1)} cm, k_B = ${fx(r.kB * 1e3, 3)} mT/A, I = ${fx(res.I, 1)} A → B = ${fx(res.Bpk * 1e3, 2)} mT`, n: 'Linear in current, so the optimizer only needs k_B from geometry and I from the heat and voltage limits.' },
-    { g: 'field', t: 'Amps against turns', e: 'I=\\frac{B_T}{k_B},\\quad k_B\\approx N\\,k_1,\\quad P_{coil}\\propto\\frac{(N I)^{2}}{m_{Cu}}', v: `${fx(g.N, 1)} turns × ${fx(res.I, 1)} A = ${fx(g.N * res.I, 0)} ampere-turns per wing for ${fx(res.Bpk * 1e3, 2)} mT; heat ${fx(res.Pcoil, 1)} W from ${fx(g.mcu, 2)} kg of copper`, n: 'Flux needs ampere-turns, and heat is set by ampere-turns and copper mass, not by amps alone. Fewer amps means more turns, which raises inductance and the voltage you need. That is the amps, volts and heat tradeoff.' },
+    { g: 'field', t: 'Amps against turns', e: 'I=\\frac{B_T}{k_B},\\quad k_B\\approx N\\,k_1,\\quad P_{coil}\\propto\\frac{(N I)^{2}}{m_{Cu}}', v: `${fx(g.N, 1)} turns × ${fx(res.I, 1)} A = ${fx(g.N * res.I, 0)} ampere-turns per ${g.nw === 1 ? 'coil' : 'wing'} for ${fx(res.Bpk * 1e3, 2)} mT; heat ${fx(res.Pcoil, 1)} W from ${fx(g.mcu, 2)} kg of copper`, n: 'Flux needs ampere-turns, and heat is set by ampere-turns and copper mass, not by amps alone. Fewer amps means more turns, which raises inductance and the voltage you need. That is the amps, volts and heat tradeoff.' },
     { g: 'field', t: 'Recovery current', e: 'I_r=\\frac{B_r}{k_B}', v: `${fx(P.recov.Bpk * 1e3, 2)} mT / ${fx(r.kB * 1e3, 3)} mT/A = ${fx(r.Ir, 2)} A`, n: 'Recovery flux is a setting, not a variable, so its current follows from the geometry.' },
     { g: 'efield', t: 'Faraday’s law', e: '\\vec E=-\\frac{\\partial \\vec A}{\\partial t}-\\nabla\\varphi\\ \\approx\\ -\\frac{\\partial \\vec A}{\\partial t}', v: 'Half-space tissue, tangential component, no charge build-up term', n: 'A conservative simplification: surface charge on real tissue boundaries redistributes the field, so verify with FEM before relying on it.' },
     { g: 'efield', t: 'Vector potential of a segment', e: '\\vec A=\\frac{\\mu_0 I}{4\\pi}\\,\\hat t\\left[\\mathrm{asinh}\\frac{s_2}{d_\\perp}-\\mathrm{asinh}\\frac{s_1}{d_\\perp}\\right]', v: `Peak over the skin surface: a_E = ${eng(r.aE, 'Wb/m/A', 3)}`, n: 'Closed form, summed over all segments. The maximum is searched on a grid across the skin under the coil.' },
     { g: 'efield', t: 'Peak induced E-field', e: 'E_{pk}=\\kappa_{slew}\\,f\\,a_E\\,I', v: `${fx(W.slew, 2)} × ${M.f} Hz × ${eng(r.aE, '', 3)} × ${fx(res.I, 1)} A = ${fx(res.Epk, 2)} V/m (reference ${fx(P.Elim, 2)})`, n: 'κ is the waveform’s peak slew: 2π for a sine, 4 for a triangle. Slower waveforms and lower frequency cut E at the same flux.' },
     { g: 'ind', t: 'Neumann mutual inductance', e: 'M_{ij}=\\frac{\\mu_0}{4\\pi}\\oint\\!\\oint\\frac{d\\vec\\ell_i\\cdot d\\vec\\ell_j}{|\\vec r_i-\\vec r_j|}', v: 'Parallel-segment pairs use the closed form Ψ(u) = u·asinh(u/d) − √(u²+d²)', n: 'Evaluated pair by pair for every segment, including the coupling between the two wings.' },
-    { g: 'ind', t: 'Total inductance', e: 'L=2L_w+2M_{12}', v: `L_w = ${fx(r.ind.Lw * 1e6, 1)} µH, M₁₂ = ${fx(r.ind.M12 * 1e6, 1)} µH → L = ${fx(r.ind.L * 1e6, 1)} µH`, n: 'The wings are wound in opposite sense for the figure-8 field, which makes the series coupling add (M₁₂ > 0).' },
+    { g: 'ind', t: 'Total inductance', e: g.nw === 1 ? 'L=L_w' : 'L=2L_w+2M_{12}', v: g.nw === 1 ? `Single coil: L = ${fx(r.ind.L * 1e6, 1)} µH` : `L_w = ${fx(r.ind.Lw * 1e6, 1)} µH, M₁₂ = ${fx(r.ind.M12 * 1e6, 1)} µH → L = ${fx(r.ind.L * 1e6, 1)} µH`, n: 'The wings are wound in opposite sense for the figure-8 field, which makes the series coupling add (M₁₂ > 0).' },
     { g: 'drive', t: 'Coil voltage', e: 'v=R\\,i+L\\frac{di}{dt},\\qquad V_{pk}=I\\sqrt{R^{2}+(2\\pi f L)^{2}}\\ (\\mathrm{sine})', v: `R = ${fx((res.Rhot + res.Rdrive) * 1e3, 0)} mΩ incl. drive, L = ${fx(r.ind.L * 1e6, 0)} µH, f = ${M.f} Hz → V = ${fx(res.Vreq, 2)} V`, n: 'At 100 Hz the inductive part is usually small for a low-turn coil, which is why heat rather than voltage limits the design.' },
     { g: 'drive', t: 'Voltage available from the source', e: 'V_{av}=D_{max}\\left(V_{oc}-R_{src}\\,I_{bus}\\right),\\quad I_{bus}\\approx I\\frac{V_{req}}{V_{oc}}', v: `0.${fx(P.drive.Dmax * 100, 0)} × (${fx(P.supply.Voc, 0)} − ${fx(P.supply.Rsrc * 1e3, 0)} mΩ × ${fx(res.Ibus, 1)} A) = ${fx(res.Vav, 1)} V`, n: 'The H-bridge cannot output the full bus voltage, and the source sags under load.' },
     { g: 'drive', t: 'Input power', e: 'P_{in}=\\delta\\,I_{rms}^{2}\\left(R_{coil}+R_{drive}\\right)+P_{sw},\\quad I_{rms}=\\kappa_{rms}I', v: `coil ${fx(res.Pcoil, 1)} W + drive ${fx(res.Pdrive, 1)} W + switching ${fx(res.Psw, 2)} W = ${fx(res.Pin, 1)} W`, n: 'Only the coil term heats the patient-side surface. Drive losses stay in the electronics.' },
@@ -151,7 +151,7 @@ function discreteCheck() {
 function runSnap() {
   const x = S.x, af = [Math.floor(x[3]), Math.ceil(x[3])].filter((v, i, a) => a.indexOf(v) === i), nf = [Math.floor(x[2]), Math.ceil(x[2])].filter((v, i, a) => a.indexOf(v) === i);
   const combos = []; for (const a of af) for (const n of nf) combos.push({ awg: Math.max(8, a), N: Math.max(2, n) });
-  const jobs = combos.map(c => { const lock = S.lock.slice(); lock[2] = c.N; lock[3] = c.awg; return { P: clonePSafe(S.P), opt: { lock, starts: [S.sol.u], lam0: S.sol.lam, maxOuter: 8, maxInner: 60 } }; });
+  const jobs = combos.map(c => { const lock = lockFor(S.P); lock[2] = c.N; lock[3] = c.awg; return { P: clonePSafe(S.P), opt: { lock, starts: [S.sol.u], lam0: S.sol.lam, maxOuter: 8, maxInner: 60 } }; });
   S.snap = { busy: true, rows: [], combos }; TABS.build.paintSnap();
   batchRunner.start({ type: 'batch', jobs }, (k, res) => { S.snap.rows[k] = { c: combos[k], res }; TABS.build.paintSnap(); }).then(() => { S.snap.busy = false; TABS.build.paintSnap(); }).catch(e => { if (e !== 'cancelled' && S.snap) S.snap.busy = false; });
 }
@@ -176,13 +176,13 @@ TABS.build = {
     const dc = discreteCheck(), rg = dc.rgd;
     const rows = [
       ['Wire', `AWG ${fx(g.awg, 1)}  (${fx(g.d * 1e3, 2)} mm bare, ${fx(g.dI * 1e3, 2)} mm with enamel)`],
-      ['Turns', `${fx(g.N, 1)} per wing  (${dc.N} when rounded: ${rg.npl} per layer × ${rg.Ld} layer${rg.Ld > 1 ? 's' : ''})`],
-      ['Wing', `${fx(g.wx * 1e3, 0)} mm wide × ${fx(g.ly * 1e3, 0)} mm long, winding band ${fx(g.b * 1e3, 0)} mm, thickness ${fx(g.t * 1e3, 1)} mm`],
-      ['Bend', `${fx(g.th * 180 / Math.PI, 1)}° per wing, ${fx(P.gap * 1e3, 0)} mm hinge gap, profile ${fx(r.prof * 1e3, 1)} mm`],
+      ['Turns', `${fx(g.N, 1)} per ${g.nw === 1 ? 'coil' : 'wing'}  (${dc.N} when rounded: ${rg.npl} per layer × ${rg.Ld} layer${rg.Ld > 1 ? 's' : ''})`],
+      [g.nw === 1 ? 'Coil' : 'Wing', `${fx(g.wx * 1e3, 0)} mm wide × ${fx(g.ly * 1e3, 0)} mm long, winding band ${fx(g.b * 1e3, 0)} mm, thickness ${fx(g.t * 1e3, 1)} mm`],
+      [g.nw === 1 ? 'Shape' : 'Bend', g.nw === 1 ? `flat single coil, profile ${fx(r.prof * 1e3, 1)} mm` : `${fx(g.th * 180 / Math.PI, 1)}° per wing, ${fx(P.gap * 1e3, 0)} mm hinge gap, profile ${fx(r.prof * 1e3, 1)} mm`],
       ['Current', `${fx(A.I, 1)} A peak acute (rms ${fx(A.Irms, 1)} A, budget ${fx(P.drive.Isw, 1)} A), ${fx(R.I, 1)} A peak recovery, ${fx(A.Ibus, 1)} A average from the source`],
       ['Copper', `${fx(g.lw, 1)} m total, ${fx(g.mcu, 2)} kg, about $${fx(g.mcu * P.price, 0)}`],
       ['Electrical', `${fx(g.R20 * 1e3, 0)} mΩ cold, ${fx(A.Rhot * 1e3, 0)} mΩ hot, ${fx(r.ind.L * 1e6, 0)} µH, current density ${fx(A.Irms / (g.Acu * 1e6), 1)} A/mm² rms`],
-      ['Footprint', `${fx((2 * g.wx + P.gap) * 1e3, 0)} × ${fx(g.ly * 1e3, 0)} mm`]
+      ['Footprint', `${fx((g.nw === 1 ? g.wx : 2 * g.wx + P.gap) * 1e3, 0)} × ${fx(g.ly * 1e3, 0)} mm`]
     ];
     $('#winding').innerHTML = '<dl class="dl">' + rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('') + '</dl>';
     this.paintSnap();
@@ -221,7 +221,7 @@ TABS.build = {
 };
 
 /* ---------------- tab registry, render, init ---------------- */
-const TAB_LIST = [['field', 'Field'], ['opt', 'Optimum'], ['lag', 'Lagrangian'], ['trade', 'Trade-offs'], ['eq', 'Equations'], ['build', 'Build sheet']];
+const TAB_LIST = [['field', 'Field'], ['opt', 'Optimum'], ['mine', 'My build'], ['lag', 'Lagrangian'], ['trade', 'Trade-offs'], ['eq', 'Equations'], ['build', 'Build sheet'], ['wiring', 'Wiring']];
 S.sweep.axis = 'Imax';
 function showTab(id) {
   S.tab = id; const t = TABS[id], host = $('#panel_' + id);

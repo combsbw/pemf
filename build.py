@@ -4,7 +4,7 @@ d=os.path.dirname(os.path.abspath(__file__))+'/src/'
 out=os.path.dirname(os.path.abspath(__file__))+'/index.html'
 r=lambda f:open(d+f).read()
 css=r('style.css'); core=r('core.js')
-app="\n".join(r(f) for f in ['part1.js','part2.js','part3.js','part4.js','part5.js'])
+app="\n".join(r(f) for f in ['part1.js','part2.js','part3.js','part4.js','part6.js','part5.js'])
 html=f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Butterfly PEMF Optimizer</title>

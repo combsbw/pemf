@@ -25,7 +25,7 @@
       nRings: 5, nLay: 0,
       gap: 0.008, phi: 0.85, rin: 0.012,
       depth: 0.06, standoff: 0.010,
-      objective: 'maxB', BaReq: 2e-3,
+      coilType: 'butterfly', objective: 'maxB', BaReq: 2e-3,
       acute: { f: 100, wave: 'sine', duty: 1.0, tsess: 600 },
       recov: { f: 20, wave: 'sine', duty: 1.0, tsess: 3600, Bpk: 0.5e-3 },
       supply: { name: '24 V battery', kind: 'battery', Voc: 24, Rsrc: 0.08, Pmax: 720, capWh: 120 },
@@ -57,13 +57,13 @@
     const tRaw = x.N * dI * dI / (P.phi * x.b);
     const t = smax(tRaw, dI, 0.05 * dI);
     const lturn = 2 * (x.wx + x.ly) - 4 * x.b;
-    const lw = 2 * x.N * lturn;
+    const nw = P.coilType === 'single' ? 1 : 2, lw = nw * x.N * lturn;
     const g = {
-      wx: x.wx, ly: x.ly, N: x.N, awg: x.awg, th: x.th, b: x.b,
+      wx: x.wx, ly: x.ly, N: x.N, awg: x.awg, th: nw === 1 ? 0 : x.th, b: x.b, nw, gapEff: nw === 1 ? -x.wx : P.gap,
       d, dI, Acu, tRaw, t, lturn, lw,
       R20: K.rho20 * lw / Acu,
       mcu: K.dens * lw * Acu,
-      Aband: 2 * (x.wx * x.ly - (x.wx - 2 * x.b) * (x.ly - 2 * x.b)),
+      Aband: nw * (x.wx * x.ly - (x.wx - 2 * x.b) * (x.ly - 2 * x.b)),
       layers: t / dI
     };
     return g;
@@ -97,10 +97,10 @@
     return out;
   }
   function buildSegs(geo, rg, P) {
-    const cnt = rg.R * 8;
+    const cnt = rg.R * 4 * geo.nw;
     const S = new Float64Array(cnt * 7); let o = 0;
-    for (const sigma of [1, -1]) for (let k = 0; k < rg.R; k++) {
-      const sg = ringSegs(geo, sigma, rg.s[k], rg.z[k], P.gap);
+    for (const sigma of (geo.nw === 1 ? [1] : [1, -1])) for (let k = 0; k < rg.R; k++) {
+      const sg = ringSegs(geo, sigma, rg.s[k], rg.z[k], geo.gapEff);
       for (const q of sg) { S[o] = q[0]; S[o + 1] = q[1]; S[o + 2] = q[2]; S[o + 3] = q[3]; S[o + 4] = q[4]; S[o + 5] = q[5]; S[o + 6] = rg.n[k]; o += 7; }
     }
     return S;
@@ -154,7 +154,7 @@
     const off = geo.t / 2 + P.standoff;
     for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
       const u = (i + 0.5) / nu * geo.wx, v = (j / (nv - 1)) * geo.ly * 0.46;
-      pts.push([P.gap / 2 + u * ct - off * st, v, u * st + off * ct]);
+      pts.push([geo.gapEff / 2 + u * ct - off * st, v, u * st + off * ct]);
     }
     for (let j = 0; j < nv; j++) pts.push([0, (j / (nv - 1)) * geo.ly * 0.46, off]);
     return pts;
@@ -222,9 +222,10 @@
       else { dU = Math.hypot(hv1 - hv2, dz); dV = Math.hypot(hu1 - hu2, dz); }
       Lw += rg.n[k] * rg.n[l] * mutRect(hu1, hv1, hu2, hv2, dz, dU, dV);
     }
+    if (geo.nw === 1) return { Lw, M12: 0, L: Lw };
     /* wing-to-wing coupling is ~3% of L: a coarse 3-ring winding reproduces it to ~1% of M12 (<0.1% of L) */
     const rc = makeRings(geo, 3, 1), Rc = rc.R, W1 = [], W2 = [];
-    for (let k = 0; k < Rc; k++) { W1.push(ringSegs(geo, 1, rc.s[k], rc.z[k], P.gap)); W2.push(ringSegs(geo, -1, rc.s[k], rc.z[k], P.gap)); }
+    for (let k = 0; k < Rc; k++) { W1.push(ringSegs(geo, 1, rc.s[k], rc.z[k], geo.gapEff)); W2.push(ringSegs(geo, -1, rc.s[k], rc.z[k], geo.gapEff)); }
     for (let k = 0; k < Rc; k++) for (let l = k; l < Rc; l++) {            // mirror symmetry: M(k,l) = M(l,k)
       const m = rc.n[k] * rc.n[l] * crossMutual(W1[k], W2[l]);
       M12 += k === l ? m : 2 * m;
@@ -331,7 +332,7 @@
     set(6, A.Vreq, A.Vav, A.Vav, 'ratio'); set(7, Rm.Vreq, Rm.Vav, Rm.Vav, 'ratio');
     set(8, A.Pin, sp.Pmax, sp.Pmax, 'ratio'); set(9, Rm.Pin, sp.Pmax, sp.Pmax, 'ratio');
     set(10, Ia, dr.Isw, dr.Isw, 'ratio'); set(11, Ir, dr.Isw, dr.Isw, 'ratio');
-    set(12, 2 * geo.wx + P.gap, sz.Wmax, sz.Wmax, 'ratio'); set(13, geo.ly, sz.Lmax, sz.Lmax, 'ratio');
+    set(12, geo.nw === 1 ? geo.wx : 2 * geo.wx + P.gap, sz.Wmax, sz.Wmax, 'ratio'); set(13, geo.ly, sz.Lmax, sz.Lmax, 'ratio');
     set(14, prof, sz.Hmax, sz.Hmax, 'ratio'); set(15, geo.mcu, sz.mmax, sz.mmax, 'ratio');
     set(16, 2 * geo.b + 2 * P.rin, geo.wx, geo.wx, 'ratio'); set(17, 2 * geo.b + 2 * P.rin, geo.ly, geo.ly, 'ratio');
     if (isFinite(sz.Pcap)) set(18, A.Pcoil, sz.Pcap, sz.Pcap, 'ratio'); else { val[18] = A.Pcoil; lim[18] = Infinity; scl[18] = 1; g[18] = -1; }

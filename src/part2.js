@@ -8,12 +8,12 @@ function modeKit(r, P, mode) {                 // current, frequency and slew fa
   return { I: res.I, f: M.f, W, slewF: W.slew * M.f, M, res };
 }
 function skinZ(r, P, x) {                      // vertical position of the skin surface above x
-  const g = r.geo, off = g.t / 2 + P.standoff, ax = Math.abs(x) - P.gap / 2;
+  const g = r.geo, off = g.t / 2 + P.standoff, ax = Math.abs(x) - g.gapEff / 2;
   return ax <= 0 ? off : ax * Math.tan(g.th) + off / Math.cos(g.th);
 }
 function planeSpec(r, P, plane) {
   const g = r.geo, ct = Math.cos(g.th), st = Math.sin(g.th);
-  const X = P.gap / 2 + g.wx * ct + 0.03, Y = g.ly / 2 + 0.03;
+  const X = g.gapEff / 2 + g.wx * ct + 0.03, Y = g.ly / 2 + 0.03;
   const zlo = Math.min(0, g.wx * st) - 0.03, zhi = r.zT + 0.035;
   if (plane === 'xz') return { x0: -X, x1: X, y0: zlo, y1: zhi, ax: 'x', ay: 'z', pt: (a, b) => [a, 0, b] };
   if (plane === 'yz') return { x0: -Y, x1: Y, y0: zlo, y1: zhi, ax: 'y', ay: 'z', pt: (a, b) => [0, a, b] };
@@ -63,9 +63,9 @@ function drawFieldMap(canvas, r, P, opt) {
   const g = r.geo, ct = Math.cos(g.th), st = Math.sin(g.th);
   ctx.save(); ctx.lineCap = 'round';
   if (plane === 'xz') {
-    for (const sg of [1, -1]) {
-      ctx.strokeStyle = surf; ctx.lineWidth = Math.max(3, g.t * (drawH / hDom)) + 3; ctx.beginPath(); ctx.moveTo(PX(sg * P.gap / 2), PY(0)); ctx.lineTo(PX(sg * (P.gap / 2 + g.wx * ct)), PY(g.wx * st)); ctx.stroke();
-      ctx.strokeStyle = ink; ctx.lineWidth = Math.max(3, g.t * (drawH / hDom)); ctx.beginPath(); ctx.moveTo(PX(sg * P.gap / 2), PY(0)); ctx.lineTo(PX(sg * (P.gap / 2 + g.wx * ct)), PY(g.wx * st)); ctx.stroke();
+    for (const sg of (g.nw === 1 ? [1] : [1, -1])) {
+      ctx.strokeStyle = surf; ctx.lineWidth = Math.max(3, g.t * (drawH / hDom)) + 3; ctx.beginPath(); ctx.moveTo(PX(sg * g.gapEff / 2), PY(0)); ctx.lineTo(PX(sg * (g.gapEff / 2 + g.wx * ct)), PY(g.wx * st)); ctx.stroke();
+      ctx.strokeStyle = ink; ctx.lineWidth = Math.max(3, g.t * (drawH / hDom)); ctx.beginPath(); ctx.moveTo(PX(sg * g.gapEff / 2), PY(0)); ctx.lineTo(PX(sg * (g.gapEff / 2 + g.wx * ct)), PY(g.wx * st)); ctx.stroke();
     }
     // skin line
     ctx.setLineDash([]);
@@ -74,10 +74,10 @@ function drawFieldMap(canvas, r, P, opt) {
     ctx.font = '600 10px "IBM Plex Mono", monospace'; ctx.textAlign = 'left'; const ly0 = PY(skinZ(r, P, spec.x0)) - 7; ctx.fillStyle = surf; ctx.fillRect(22, ly0 - 10, 30, 14); ctx.fillStyle = ink; ctx.fillText('skin', 26, ly0);
   } else if (plane === 'xy' || plane === 'skin') {
     ctx.strokeStyle = ink; ctx.lineWidth = 1.6;
-    for (const sg of [1, -1]) {
-      const xa = sg * P.gap / 2, xb = sg * (P.gap / 2 + g.wx * ct);
+    for (const sg of (g.nw === 1 ? [1] : [1, -1])) {
+      const xa = sg * g.gapEff / 2, xb = sg * (g.gapEff / 2 + g.wx * ct);
       ctx.strokeRect(Math.min(PX(xa), PX(xb)), PY(g.ly / 2), Math.abs(PX(xb) - PX(xa)), PY(-g.ly / 2) - PY(g.ly / 2));
-      const bi = g.b * ct; const xa2 = sg * (P.gap / 2 + bi), xb2 = sg * (P.gap / 2 + g.wx * ct - bi);
+      const bi = g.b * ct; const xa2 = sg * (g.gapEff / 2 + bi), xb2 = sg * (g.gapEff / 2 + g.wx * ct - bi);
       ctx.save(); ctx.globalAlpha = 0.5; ctx.setLineDash([3, 3]); ctx.strokeRect(Math.min(PX(xa2), PX(xb2)), PY(g.ly / 2 - g.b), Math.abs(PX(xb2) - PX(xa2)), PY(-g.ly / 2 + g.b) - PY(g.ly / 2 - g.b)); ctx.restore();
     }
   } else {

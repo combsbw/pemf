@@ -7,7 +7,7 @@ const S = {
   P: C.defaults(), lock: new Array(NV).fill(null), sol: null, x: null, r: null,
   mode: 'a', tab: 'field', solving: false, solveMs: 0, panel: 'views',
   plane: 'xz', q: 'B', slice: { i: 5, j: 0 }, sweep: { axis: 'Pcap', data: null, busy: false, stale: true }, supplyCmp: { data: null, busy: false, stale: true },
-  snap: null, supplyKey: 'bat24', showAll: false
+  snap: null, supplyKey: 'bat24', showAll: false, manual: false
 };
 S.P.supply = Object.assign({}, C.SUPPLIES.bat24);
 /* objective descriptors: every place that depends on what is being optimized reads from here */
@@ -21,14 +21,14 @@ const needsB = () => S.P.objective !== 'maxB';
 
 /* ---------- persistence (per-viewer convenience only) ---------- */
 const KEY = 'pemf-butterfly-v2';
-function saveState() { try { localStorage.setItem(KEY, JSON.stringify({ P: S.P, lock: S.lock, supplyKey: S.supplyKey }, (k, v) => v === Infinity ? '∞' : v)); } catch (e) { } }
+function saveState() { try { localStorage.setItem(KEY, JSON.stringify({ P: S.P, lock: S.lock, supplyKey: S.supplyKey, manual: S.manual, x: S.x }, (k, v) => v === Infinity ? '∞' : v)); } catch (e) { } }
 function loadState() {
   try {
     const t = localStorage.getItem(KEY); if (!t) return;
     const o = JSON.parse(t, (k, v) => v === '∞' ? Infinity : v); if (!o || !o.P) return;
     const def = C.defaults();
     const merge = (a, b) => { for (const k in b) { if (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && a[k]) merge(a[k], b[k]); else if (k in a || k === 'Imax') a[k] = b[k]; } return a; };
-    S.P = merge(def, o.P); S.lock = Array.isArray(o.lock) && o.lock.length === NV ? o.lock : S.lock; S.supplyKey = o.supplyKey || S.supplyKey;
+    S.P = merge(def, o.P); S.lock = Array.isArray(o.lock) && o.lock.length === NV ? o.lock : S.lock; S.supplyKey = o.supplyKey || S.supplyKey; S.manual = !!o.manual && S.lock.every(v => v != null); if (S.manual && Array.isArray(o.x) && o.x.length === NV) S.x = o.x;
   } catch (e) { }
 }
 const saveSoon = debounce(saveState, 400);
@@ -87,12 +87,20 @@ function coldStarts(n) {
   return base.slice(0, n || 2);
 }
 let solveToken = 0;
+const lockFor = P => { const l = S.manual ? new Array(NV).fill(null) : S.lock.slice(); if (P.coilType === 'single') l[4] = 0; return l; };
+function applyManual() {
+  const x = S.x.slice(); for (let i = 0; i < NV; i++) if (S.lock[i] != null) x[i] = S.lock[i];
+  S.x = x; S.r = C.evaluate(S.x, S.P); let viol = 0; S.r.g.forEach((g, i) => { if (!(CN[i].id === 'Breq' && !needsB())) viol = Math.max(viol, g); });
+  S.sol = { u: C.toU(x), x: x.slice(), lam: new Array(CN.length).fill(0), kkt: { stat: 0, viol: Math.max(0, viol), comp: 0 }, evals: 1, trace: [], atBound: VAR.map(() => 'locked'), g: S.r.g, Bpk: S.r.A.Bpk, Pcoil: S.r.A.Pcoil };
+  S.solving = false; S.error = null; S.sweep.stale = true; S.supplyCmp.stale = true; S.snap = null; S.sliceStale = true;
+}
 function solveNow(opts) {
-  opts = opts || {}; const token = ++solveToken; S.solving = true; renderStatus();
+  opts = opts || {};
+  if (S.manual) { solveToken++; mainRunner.cancel(); applyManual(); renderAll(); return; } const token = ++solveToken; S.solving = true; renderStatus();
   const t0 = performance.now();
   const P = clonePSafe(S.P);
   const starts = opts.global ? coldStarts(3).concat(S.sol ? [S.sol.u] : []) : (S.sol ? [S.sol.u] : coldStarts(2));
-  const opt = { lock: S.lock.slice(), starts, maxOuter: 10, maxInner: 80 };
+  const opt = { lock: lockFor(S.P), starts, maxOuter: 10, maxInner: 80 };
   if (S.sol && !opts.global) opt.lam0 = S.sol.lam;
   mainRunner.start({ type: 'solve', P, opt }).then(sol => {
     if (token !== solveToken) return;
@@ -113,6 +121,7 @@ const P_ = (path, scale) => ({
 });
 const SCHEMA = [
   { sec: 'Target and objective', open: true, items: [
+    { id: 'coilType', type: 'seg', label: 'Coil', opts: [['butterfly', 'Butterfly'], ['single', 'Single coil']], ...P_('coilType', 1), reflow: true, hint: 'Butterfly is two wings wound in opposite sense (a figure-8) with an optional bend. Single coil is one flat rectangular spiral.' },
     { id: 'objective', type: 'seg', label: 'Objective', opts: [['maxB', 'Max flux'], ['minI', 'Min amps'], ['minP', 'Min heat']], ...P_('objective', 1), reflow: true, hint: 'Max flux pushes B at the target as high as your limits allow. Min amps and Min heat fix the flux you need and then minimize current or coil dissipation.' },
     { id: 'Isw', label: 'Peak current budget (acute)', unit: 'A', min: 1, max: 60, step: 0.5, ...P_('drive.Isw', 1), hint: 'The most amps your build can handle. The solver trades turns, wire gauge and voltage to stay under it. Recovery current is set by its flux and the same limit applies.' },
     { id: 'BaReq', label: 'Required acute flux', unit: 'mT', min: 0.5, max: 20, step: 0.1, ...P_('BaReq', 1e3), show: P => P.objective !== 'maxB' },
@@ -161,7 +170,7 @@ const SCHEMA = [
     { id: 'price', label: 'Wire price', unit: '$/kg', min: 5, max: 40, step: 1, ...P_('price', 1) }
   ] },
   { sec: 'Winding assumptions', items: [
-    { id: 'gap', label: 'Gap between wings', unit: 'mm', min: 2, max: 30, step: 1, ...P_('gap', 1e3) },
+    { id: 'gap', label: 'Gap between wings', unit: 'mm', min: 2, max: 30, step: 1, ...P_('gap', 1e3), show: P => P.coilType !== 'single' },
     { id: 'phi', label: 'Winding packing', unit: '', min: 0.6, max: 0.95, step: 0.01, ...P_('phi', 1), hint: 'Share of the winding window the insulated wire fills.' },
     { id: 'rin', label: 'Inner clearance', unit: 'mm', min: 5, max: 40, step: 1, ...P_('rin', 1e3) }
   ] }
@@ -236,6 +245,7 @@ function renderStatus() {
   const el = $('#status'); if (!el) return;
   const s = S.sol; let html;
   if (S.error) html = `<span class="chip bad">Solver error</span>`;
+  else if (S.manual && s) { const o = CN.map((c, i) => ({ c, g: S.r.g[i] })).filter(q => q.g > 1e-3 && !(q.c.id === 'Breq' && !needsB())); html = o.length ? `<span class="chip bad" title="${esc(o.map(q => q.c.label).join(', '))}">Your numbers · ${o.length} limit${o.length > 1 ? 's' : ''} over</span>` : '<span class="chip ok">Your numbers · within every limit</span>'; }
   else if (S.solving) html = `<span class="chip busy"><i class="spin"></i>Solving</span>`;
   else if (s && s.kkt.viol > 5e-3) html = `<span class="chip bad" title="Largest constraint violation at the best point found">No feasible design · worst limit over by ${fx(s.kkt.viol * 100, 0)}%</span>`;
   else if (s) html = `<span class="chip ok" title="Stationarity residual ${s.kkt.stat.toExponential(1)}, worst violation ${s.kkt.viol.toExponential(1)}, complementarity ${s.kkt.comp.toExponential(1)}">KKT satisfied · ${fx(S.solveMs / 1000, 1)} s</span>`;
@@ -244,6 +254,7 @@ function renderStatus() {
 }
 function limitedBy() {
   if (!S.sol) return '';
+  if (S.manual) { const o = CN.map((c, i) => ({ c, g: S.r.g[i] })).filter(q => q.g > -0.03 && isFinite(S.r.lim[CI[q.c.id]]) && !(q.c.id === 'Breq' && !needsB())).sort((a, b) => b.g - a.g).slice(0, 3); return o.length ? 'Your numbers are at or over: ' + o.map(q => `<b>${esc(q.c.label.toLowerCase())}</b>`).join(', ') : 'Your numbers are inside every limit.'; }
   const lam = S.sol.lam, act = CN.map((c, i) => ({ c, i, l: lam[i] })).filter(o => o.l > 1e-3 && !(!needsB() && o.c.id === 'Breq')).sort((a, b) => b.l - a.l).slice(0, 3);
   const bounds = S.sol.atBound.map((b, i) => (b === 'lo' || b === 'hi') ? VAR[i].label.toLowerCase() + (b === 'lo' ? ' at minimum' : ' at maximum') : null).filter(Boolean);
   if (!act.length && !bounds.length) return 'No limit is binding: the design is set by the variable ranges.';
