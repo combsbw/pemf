@@ -20,6 +20,8 @@ function mbFields() {
     { id: 'th', label: 'Bend angle', unit: '°', step: 0.5, v: g.th * 180 / Math.PI, vi: 4, set: v => setVar(4, clampv(v * Math.PI / 180, -0.5, 1.2)), only: 'butterfly', note: 'Wings rise toward the patient by this angle.' },
     { id: 'gap', label: 'Hinge gap', unit: 'mm', step: 1, v: P.gap * 1e3, vi: null, set: v => { S.P.gap = clampv(v / 1e3, 0.0005, 0.1); }, only: 'butterfly', note: 'Space between the two wings at the hinge.' },
     { id: 'Ia', label: 'Peak current (acute)', unit: 'A', step: 0.1, v: S.x[6], vi: 6, set: v => setVar(6, clampv(v, 0.01, 500)), note: `Recovery mode runs ${fx(r.R.I, 2)} A for ${fx(P.recov.Bpk * 1e3, 2)} mT` },
+    { id: 'md', label: 'Drive duty (acute)', unit: '%', step: 1, v: A.mReq * 100, vi: 6, set: v => setVar(6, C.driveCurrent(r.geo, r.ind, r.aE, r.kB, S.P, S.P.acute, clampv(v, 1, 95) / 100)), note: `PWM modulation depth of the bridge. Enter the duty you will run and the current and flux follow. Recovery needs ${fx(r.R.mReq * 100, 0)}% for ${fx(P.recov.Bpk * 1e3, 2)} mT.` },
+    { id: 'bd', label: 'Burst duty (acute)', unit: '%', step: 1, v: P.acute.duty * 100, vi: null, set: v => { S.P.acute.duty = clampv(v / 100, 0.01, 1); }, note: `Share of time the coil is on. Heat allows up to ${fx(C.dutyLimits(r.geo, r.ind, r.aE, r.kB, P, P.acute, A.I, true).D * 100, 0)}%.` },
     { id: 'Bw', label: 'Flux at target (acute)', unit: 'mT', step: 0.05, v: A.Bpk * 1e3, vi: 6, set: v => setVar(6, clampv(v * 1e-3 / r.kB, 0.01, 500)), note: `${fx(r.kB * 1e3, 3)} mT per amp at ${fx(P.depth * 100, 1)} cm. Enter the flux you want and the current follows.` }
   ].filter(f => !f.only || f.only === P.coilType || (f.only === 'butterfly' && P.coilType !== 'single'));
 }
@@ -70,7 +72,7 @@ TABS.mine = {
     const r = S.r, P = S.P, g = r.geo, A = r.A, R = r.R, T = A.T;
     const items = [
       ['Flux at target', `${fx(A.Bpk * 1e3, 2)} mT`], ['Peak current', `${fx(A.I, 2)} A (rms ${fx(A.Irms, 2)})`], ['Voltage needed', `${fx(A.Vreq, 1)} V of ${fx(A.Vav, 1)} V`],
-      ['Coil heat', `${fx(A.Pcoil, 1)} W`], ['Coil temperature', `${fx(T.Tend, 0)} °C after ${fx(P.acute.tsess / 60, 0)} min`], ['Skin temperature', `${fx(T.Ts, 1)} °C`],
+      ['Drive duty', `${fx(A.mReq * 100, 0)}% acute, ${fx(R.mReq * 100, 0)}% recovery`], ['Burst duty', `${fx(P.acute.duty * 100, 0)}% acute: coil heat ${fx(A.Pcoil, 1)} W average`], ['Coil temperature', `${fx(T.Tend, 0)} °C after ${fx(P.acute.tsess / 60, 0)} min`], ['Skin temperature', `${fx(T.Ts, 1)} °C`],
       ['Induced E-field', `${fx(A.Epk, 2)} V/m`], ['Resistance', `${fx(g.R20 * 1e3, 0)} mΩ cold, ${fx(A.Rhot * 1e3, 0)} mΩ hot`], ['Inductance', `${fx(r.ind.L * 1e6, 0)} µH`],
       ['Wire', `${fx(g.lw, 1)} m, ${fx(g.mcu, 2)} kg`], ['Current density', `${fx(A.Irms / (g.Acu * 1e6), 1)} A/mm² rms`], ['Source current', `${fx(A.Ibus, 1)} A average`],
       ['Footprint', `${fx((g.nw === 1 ? g.wx : 2 * g.wx + P.gap) * 1e3, 0)} × ${fx(g.ly * 1e3, 0)} mm, ${fx(r.prof * 1e3, 0)} mm high`], ['Recovery mode', `${fx(R.I, 2)} A, ${fx(R.Bpk * 1e3, 2)} mT`]

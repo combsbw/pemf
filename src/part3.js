@@ -132,13 +132,11 @@ const SCHEMA = [
   { sec: 'Acute mode', open: true, items: [
     { id: 'fa', label: 'Frequency', unit: 'Hz', min: 40, max: 200, step: 5, ...P_('acute.f', 1) },
     { id: 'wa', type: 'select', label: 'Waveform', opts: WAVE_OPTS, ...P_('acute.wave', 1) },
-    { id: 'da', label: 'Burst duty', unit: '%', min: 10, max: 100, step: 5, ...P_('acute.duty', 100), hint: 'Fraction of time the coil is energized. Heat scales with duty, flux per pulse does not.' },
     { id: 'ta', label: 'Session length', unit: 'min', min: 1, max: 60, step: 1, ...P_('acute.tsess', 1 / 60) }
   ] },
   { sec: 'Recovery mode', items: [
     { id: 'fr', label: 'Frequency', unit: 'Hz', min: 5, max: 40, step: 1, ...P_('recov.f', 1) },
     { id: 'wr', type: 'select', label: 'Waveform', opts: WAVE_OPTS, ...P_('recov.wave', 1) },
-    { id: 'dr', label: 'Burst duty', unit: '%', min: 10, max: 100, step: 5, ...P_('recov.duty', 100) },
     { id: 'tr', label: 'Session length', unit: 'min', min: 5, max: 480, step: 5, ...P_('recov.tsess', 1 / 60) }
   ] },
   { sec: 'Power source', open: true, items: [
@@ -175,7 +173,16 @@ const SCHEMA = [
     { id: 'rin', label: 'Inner clearance', unit: 'mm', min: 5, max: 40, step: 1, ...P_('rin', 1e3) }
   ] }
 ];
-const ITEM = {}; SCHEMA.forEach(s => s.items.forEach(it => ITEM[it.id] = it));
+/* the two duty cycles live in the strip above the tabs, not in the side panel */
+const HINT_M = 'PWM modulation depth of the H-bridge: the share of the supply voltage you apply. It is the flux dial. Change this instead of changing the supply voltage. Here it is the ceiling the design may use.';
+const HINT_D = 'Fraction of the time the coil is energized, as bursts of full-amplitude cycles. Coil heat, supply power and pack energy scale with it. Flux during a burst does not change.';
+const DUTY_ITEMS = [
+  { id: 'ma', mode: 'a', kind: 'm', label: 'Drive duty', tag: 'sets flux', unit: '%', min: 10, max: 95, step: 1, strict: 1, ...P_('acute.m', 100), hint: HINT_M },
+  { id: 'da', mode: 'a', kind: 'D', label: 'Burst duty', tag: 'sets heat', unit: '%', min: 5, max: 100, step: 1, strict: 1, ...P_('acute.duty', 100), hint: HINT_D },
+  { id: 'mr', mode: 'r', kind: 'm', label: 'Drive duty', tag: 'sets flux', unit: '%', min: 10, max: 95, step: 1, strict: 1, ...P_('recov.m', 100), hint: HINT_M },
+  { id: 'dr', mode: 'r', kind: 'D', label: 'Burst duty', tag: 'sets heat', unit: '%', min: 5, max: 100, step: 1, strict: 1, ...P_('recov.duty', 100), hint: HINT_D }
+];
+const ITEM = {}; SCHEMA.forEach(s => s.items.forEach(it => ITEM[it.id] = it)); DUTY_ITEMS.forEach(it => ITEM[it.id] = it);
 const decOf = st => st >= 1 ? 0 : Math.min(3, Math.ceil(-Math.log10(st) - 1e-9));
 const openSec = {}; SCHEMA.forEach(s => openSec[s.sec] = !!s.open);
 
@@ -215,14 +222,15 @@ function applyParam(id, disp) {
 }
 function wireControls() {
   const host = $('#problem');
-  host.addEventListener('input', e => {
+  const onCtl = e => {
     const t = e.target, id = t.dataset.rg || t.dataset.num; if (!id) return;
     const it = ITEM[id]; let v = parseFloat(t.value); if (!isFinite(v)) return;
     const other = t.dataset.rg ? $('#in_' + id) : $('#rg_' + id);
     if (t.dataset.rg) { if (other) other.value = Number(v).toFixed(decOf(it.step)); }
     else if (other) other.value = clamp(v, it.min, it.max);
-    applyParam(id, clamp(v, it.min * 0.2, it.max * 5));
-  });
+    applyParam(id, it.strict ? clamp(v, it.min, it.max) : clamp(v, it.min * 0.2, it.max * 5));
+  };
+  host.addEventListener('input', onCtl); $('#dutystrip').addEventListener('input', onCtl);
   host.addEventListener('change', e => {
     const t = e.target;
     if (t.dataset.sel) { applyParam(t.dataset.sel, t.value); renderControls(); }
@@ -270,11 +278,12 @@ function renderReadout() {
     { k: 'Induced E at skin', v: fx(res.Epk, 2), u: 'V/m', sub: `reference ${fx(P.Elim, 2)}`, cls: stClass(gi('E_a', 'E_r')) },
     { k: 'Coil temperature', v: fx(res.T.Tend, 0), u: '°C', sub: `after ${fx(M.tsess / 60, 0)} min, limit ${fx(P.thermal.Tmax, 0)}`, cls: stClass(gi('Tc_a', 'Tc_r')) },
     { k: 'Skin temperature', v: fx(res.T.Ts, 1), u: '°C', sub: `limit ${fx(P.thermal.Tskin, 1)}`, cls: stClass(gi('Ts_a', 'Ts_r')) },
-    { k: 'Drive voltage', v: fx(res.Vreq, 1), u: 'V', sub: `of ${fx(res.Vav, 1)} V available`, cls: stClass(gi('V_a', 'V_r')) },
+    { k: 'Drive duty', v: fx(res.mReq * 100, 0), u: '%', sub: `${fx(res.Vreq, 1)} V of ${fx(res.Vav, 1)} V · ceiling ${fx(res.Dm * 100, 0)}%`, meter: res.mReq / res.Dm, cls: stClass(gi('V_a', 'V_r')) },
     { k: 'Coil heat', v: fx(res.Pcoil, 1), u: 'W', sub: `${fx(res.Pin, 0)} W from source`, cls: stClass(gi('P_a', 'P_r')) }
   ];
   const html = cells.map(c => `<div class="kpi ${c.big ? 'big' : ''} ${c.amps ? 'amps' : ''} ${c.cls || ''}"><div class="kk">${esc(c.k)}</div><div class="kv">${c.v}<span>${esc(c.u)}</span></div><div class="ks">${c.cls === 'over' ? '<b class="tag">over limit</b> ' : c.cls === 'bind' ? '<b class="tag">at limit</b> ' : ''}${esc(c.sub)}</div>${c.meter != null ? `<div class="meter"><i style="width:${clamp(c.meter * 100, 0, 100).toFixed(0)}%"></i></div>` : ''}</div>`).join('');
   $('#kpis').innerHTML = html; $('#limitedby').innerHTML = limitedBy();
   $$('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === m));
   $('#modeSeg [data-m=a]').textContent = `Acute ${P.acute.f} Hz`; $('#modeSeg [data-m=r]').textContent = `Recovery ${P.recov.f} Hz`;
+  renderDuty();
 }

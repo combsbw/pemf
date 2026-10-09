@@ -25,9 +25,9 @@
       nRings: 5, nLay: 0,
       gap: 0.008, phi: 0.85, rin: 0.012,
       depth: 0.06, standoff: 0.010,
-      coilType: 'butterfly', objective: 'maxB', BaReq: 2e-3,
-      acute: { f: 100, wave: 'sine', duty: 1.0, tsess: 600 },
-      recov: { f: 20, wave: 'sine', duty: 1.0, tsess: 3600, Bpk: 0.5e-3 },
+      coilType: 'butterfly', objective: 'maxB', BaReq: 2e-3, burstT: 1,
+      acute: { f: 100, wave: 'sine', duty: 1.0, m: 0.95, tsess: 600 },
+      recov: { f: 20, wave: 'sine', duty: 1.0, m: 0.95, tsess: 3600, Bpk: 0.5e-3 },
       supply: { name: '24 V battery', kind: 'battery', Voc: 24, Rsrc: 0.08, Pmax: 720, capWh: 120 },
       drive: { Rds: 0.005, Rsh: 0.005, Rwire: 0.02, Dmax: 0.95, fpwm: 20000, tsw: 1.2e-7, Isw: 10 },
       thermal: { Ta: 22, Tcore: 37, hdn: 6, kc: 0.05, ht: 40, spread: 1.5, Cx: 2000, Tmax: 60, Tskin: 41 },
@@ -266,12 +266,50 @@
     const Pin = Pcoil + Pdrive + Psw;
     const Vreq = I * W.vpk(Rhot + Rdrive, ind.L, M.f);
     const Ibus = I * Vreq / Math.max(sp.Voc, 1e-9);
-    const Vav = dr.Dmax * (sp.Voc - sp.Rsrc * Ibus);
+    const Dm = M.m == null ? dr.Dmax : Math.min(M.m, dr.Dmax);          // drive duty ceiling: PWM modulation depth of the H-bridge
+    const Vsag = Math.max(sp.Voc - sp.Rsrc * Ibus, 1e-9);
+    const Vav = Dm * Vsag, mReq = Vreq / Vsag;                         // mReq: the drive duty this current needs
     return {
       I, Irms, Bpk: kB * I, Epk: W.slew * M.f * aE * I, dBdt: W.slew * M.f * kB * I,
-      P0, T, Rhot, Pcoil, Pdrive, Psw, Pin, Vreq, Vav, Ibus, Rdrive, Fs,
+      P0, T, Rhot, Pcoil, Pdrive, Psw, Pin, Vreq, Vav, Ibus, Rdrive, Fs, Dm, mReq, Vsag,
       E_Wh: Pin * M.tsess / 3600, Ipk: I, W
     };
+  }
+
+
+  /* ---------------------------------------------------------------- duty cycle
+     Two duties. Drive duty m is the PWM modulation depth: the H-bridge applies m*Vsrc, so for a built coil
+        m*(Voc - Rsrc*Ibus) = I*Z(f),  Ibus = I^2 Z/Voc   ->  quadratic in I, solved with the hot resistance iterated.
+     Burst duty D is the fraction of time the coil is energized: heat, supply power and pack energy scale with D, flux per pulse does not. */
+  function driveCurrent(geo, ind, aE, kB, P, M, m) {
+    /* balance  I Z(T(I)) = m (Voc - Rsrc I^2 Z / Voc): the left side rises with I (copper heats), the right falls, so one root; bisect it */
+    const W = WAVES[M.wave], dr = P.drive, sp = P.supply, Rdrive = 2 * dr.Rds + dr.Rsh + dr.Rwire, Dm = Math.min(m, dr.Dmax), Voc = Math.max(sp.Voc, 1e-9);
+    const Zc = W.vpk(geo.R20 * skinFactor(geo.d, M.f) + Rdrive, ind.L, M.f);
+    const res = I => { const c = modeCalc(geo, ind, aE, kB, P, M, I), Z = W.vpk(c.Rhot + Rdrive, ind.L, M.f); return I * Z - Dm * (Voc - sp.Rsrc * I * I * Z / Voc); };
+    let lo = 0, hi = Dm * Voc / Zc;                       // at the cold impedance the current is largest
+    for (let k = 0; k < 60; k++) { const mid = (lo + hi) / 2; if (res(mid) > 0) hi = mid; else lo = mid; }
+    return (lo + hi) / 2;
+  }
+  function dutyLimits(geo, ind, aE, kB, P, M, I, acute) {
+    const th = P.thermal, sp = P.supply, sz = P.size;
+    const at = D => modeCalc(geo, ind, aE, kB, P, Object.assign({}, M, { duty: D }), I);
+    const maxD = ok => { if (ok(1)) return 1; if (!ok(0.002)) return 0; let lo = 0.002, hi = 1; for (let k = 0; k < 34; k++) { const mid = (lo + hi) / 2; if (ok(mid)) lo = mid; else hi = mid; } return lo; };
+    const out = {
+      coil: maxD(D => at(D).T.Tend <= th.Tmax),
+      skin: maxD(D => at(D).T.Ts <= th.Tskin),
+      supply: maxD(D => at(D).Pin <= sp.Pmax),
+      pcap: acute && isFinite(sz.Pcap) ? maxD(D => at(D).Pcoil <= sz.Pcap) : 1,
+      energy: isFinite(sp.capWh) ? maxD(D => at(D).E_Wh <= 0.8 * sp.capWh) : 1
+    };
+    let by = 'coil', D = out.coil; for (const k of ['skin', 'supply', 'pcap', 'energy']) if (out[k] < D - 1e-9) { D = out[k]; by = k; }
+    out.D = D; out.by = by; return out;
+  }
+  /* one built coil, swept over drive duty: flux, amps, heat and the burst duty each limit allows */
+  function dutyCurve(r, P, M, acute, ms) {
+    return ms.map(m => {
+      const I = driveCurrent(r.geo, r.ind, r.aE, r.kB, P, M, m), c = modeCalc(r.geo, r.ind, r.aE, r.kB, P, M, I), L = dutyLimits(r.geo, r.ind, r.aE, r.kB, P, M, I, acute);
+      return { m, I, B: r.kB * I, Irms: c.Irms, Ibus: c.Ibus, Pcoil: c.Pcoil, Pin: c.Pin, Tend: c.T.Tend, Ts: c.T.Ts, Vreq: c.Vreq, lim: L };
+    });
   }
 
   /* ---------------------------------------------------------------- full design evaluation */
@@ -449,5 +487,5 @@
   }
 
   return { PI, MU0, K, VARS, CONS, WAVES, SUPPLIES, defaults, awgDia, enamel, skinFactor, geometry, makeRings, discreteRings, ringSegs, buildSegs, fieldAt, potentialAt, skinPoints, peakA,
-    psi, I2, mutRect, crossMutual, segSegInt, inductance, diagGMD, thermal, modeCalc, evaluate, solve, toX, toU };
+    psi, I2, mutRect, crossMutual, segSegInt, inductance, diagGMD, thermal, modeCalc, driveCurrent, dutyLimits, dutyCurve, evaluate, solve, toX, toU };
 });

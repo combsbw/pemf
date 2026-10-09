@@ -283,3 +283,21 @@ svg.wd{display:block;width:100%;min-width:820px;height:auto}
 td.wrap{white-space:normal;min-width:180px}
 
 .wd .halo{paint-order:stroke;stroke:var(--sunk);stroke-width:4px;stroke-linejoin:round}
+
+/* duty cycle strip and tab */
+.dutystrip{margin-top:12px;background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:12px 14px;display:grid;gap:10px;min-width:0}
+.dsh{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px}
+.dsh h2{font-size:14px;font-weight:600}
+.dsh span{font-size:12.5px;color:var(--ink2)}
+.dsm{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px 24px}
+.dsm[hidden]{display:none}
+.dsc{min-width:0;padding-left:10px;border-left:3px solid var(--accent)}
+.dsc[data-k=D]{border-left-color:var(--c4)}
+.dtag{font-style:normal;font-size:11px;color:var(--muted);border:1px solid var(--hair2);border-radius:99px;padding:1px 8px}
+.dsr{font-size:12.5px;color:var(--ink2);margin-top:2px;min-height:2.7em;text-wrap:pretty}
+.dsr b{color:var(--ink)}
+.dsr .tag.over{background:var(--bad);color:var(--surface)}
+.dsfoot{font-size:12.5px;color:var(--ink2);margin:0;padding-top:8px;border-top:1px solid var(--hair)}
+.dsfoot b{color:var(--ink)}
+.ct{font-size:12px;color:var(--muted);margin:2px 0 4px}
+.gfull{grid-column:1/-1}

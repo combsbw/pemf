@@ -6,6 +6,7 @@ const AXES = {
   Pcap: { label: 'Heat budget (acute)', unit: 'W', vals: [4, 7, 10, 14, 20, 28, 40, 55, 75], set: (P, v) => { P.size.Pcap = v; }, cons: 'Pcap', k: 1 },
   Tmax: { label: 'Coil temperature limit', unit: '°C', vals: [40, 45, 50, 55, 60, 65, 70, 75, 80], set: (P, v) => { P.thermal.Tmax = v; }, cons: 'Tc_a', k: 1 },
   tsess: { label: 'Acute session length', unit: 'min', vals: [2, 5, 8, 12, 17, 23, 30, 45, 60], set: (P, v) => { P.acute.tsess = v * 60; } },
+  mdrive: { label: 'Acute drive duty ceiling', unit: '%', vals: [20, 30, 40, 50, 60, 70, 80, 90, 95], set: (P, v) => { P.acute.m = v / 100; } },
   duty: { label: 'Acute burst duty', unit: '%', vals: [20, 30, 40, 50, 60, 70, 80, 90, 100], set: (P, v) => { P.acute.duty = v / 100; } },
   depth: { label: 'Target depth', unit: 'cm', vals: [3, 4, 5, 6, 7, 8, 9, 10, 11], set: (P, v) => { P.depth = v / 100; } },
   mmax: { label: 'Copper mass limit', unit: 'kg', vals: [0.4, 0.7, 1, 1.4, 1.8, 2.4, 3, 3.6, 4.4], set: (P, v) => { P.size.mmax = v; }, cons: 'mCu', k: 1 },
@@ -14,7 +15,7 @@ const AXES = {
 };
 function axisCurrent(key) {
   const P = S.P;
-  return { Imax: P.drive.Isw, Pcap: P.size.Pcap, Tmax: P.thermal.Tmax, tsess: P.acute.tsess / 60, duty: P.acute.duty * 100, depth: P.depth * 100, mmax: P.size.mmax, Hmax: P.size.Hmax * 1e3, Elim: P.Elim }[key];
+  return { Imax: P.drive.Isw, Pcap: P.size.Pcap, Tmax: P.thermal.Tmax, tsess: P.acute.tsess / 60, duty: P.acute.duty * 100, mdrive: P.acute.m * 100, depth: P.depth * 100, mmax: P.size.mmax, Hmax: P.size.Hmax * 1e3, Elim: P.Elim }[key];
 }
 const metric = res => obj().fromSol(res);
 const metricName = () => [obj().name, obj().unit];
@@ -114,7 +115,9 @@ function eqList() {
     { g: 'ind', t: 'Neumann mutual inductance', e: 'M_{ij}=\\frac{\\mu_0}{4\\pi}\\oint\\!\\oint\\frac{d\\vec\\ell_i\\cdot d\\vec\\ell_j}{|\\vec r_i-\\vec r_j|}', v: 'Parallel-segment pairs use the closed form Ψ(u) = u·asinh(u/d) − √(u²+d²)', n: 'Evaluated pair by pair for every segment, including the coupling between the two wings.' },
     { g: 'ind', t: 'Total inductance', e: g.nw === 1 ? 'L=L_w' : 'L=2L_w+2M_{12}', v: g.nw === 1 ? `Single coil: L = ${fx(r.ind.L * 1e6, 1)} µH` : `L_w = ${fx(r.ind.Lw * 1e6, 1)} µH, M₁₂ = ${fx(r.ind.M12 * 1e6, 1)} µH → L = ${fx(r.ind.L * 1e6, 1)} µH`, n: 'The wings are wound in opposite sense for the figure-8 field, which makes the series coupling add (M₁₂ > 0).' },
     { g: 'drive', t: 'Coil voltage', e: 'v=R\\,i+L\\frac{di}{dt},\\qquad V_{pk}=I\\sqrt{R^{2}+(2\\pi f L)^{2}}\\ (\\mathrm{sine})', v: `R = ${fx((res.Rhot + res.Rdrive) * 1e3, 0)} mΩ incl. drive, L = ${fx(r.ind.L * 1e6, 0)} µH, f = ${M.f} Hz → V = ${fx(res.Vreq, 2)} V`, n: 'At 100 Hz the inductive part is usually small for a low-turn coil, which is why heat rather than voltage limits the design.' },
-    { g: 'drive', t: 'Voltage available from the source', e: 'V_{av}=D_{max}\\left(V_{oc}-R_{src}\\,I_{bus}\\right),\\quad I_{bus}\\approx I\\frac{V_{req}}{V_{oc}}', v: `0.${fx(P.drive.Dmax * 100, 0)} × (${fx(P.supply.Voc, 0)} − ${fx(P.supply.Rsrc * 1e3, 0)} mΩ × ${fx(res.Ibus, 1)} A) = ${fx(res.Vav, 1)} V`, n: 'The H-bridge cannot output the full bus voltage, and the source sags under load.' },
+    { g: 'drive', t: 'Drive duty: the flux dial', e: 'V_{av}=m\\left(V_{oc}-R_{src}\\,I_{bus}\\right),\\quad I_{bus}\\approx I\\frac{V_{req}}{V_{oc}},\\quad m_{req}=\\frac{V_{req}}{V_{oc}-R_{src}I_{bus}}\\le m_{max}', v: `${fx(res.Dm, 2)} × (${fx(P.supply.Voc, 0)} − ${fx(P.supply.Rsrc * 1e3, 0)} mΩ × ${fx(res.Ibus, 1)} A) = ${fx(res.Vav, 1)} V; this current needs m = ${fx(res.mReq, 2)}`, n: 'm is the PWM modulation depth of the H-bridge, the share of the supply voltage you apply. Lowering it lowers the voltage, so lowers the current and the flux, with no change to the supply.' },
+    { g: 'drive', t: 'Current set by drive duty', e: 'I(m)=\\frac{-Z+\\sqrt{Z^{2}+4\\,a\\,m\\,V_{oc}}}{2a},\\quad a=\\frac{m\\,R_{src}Z}{V_{oc}},\\quad B=k_B\\,I(m)', v: `Z = ${fx(res.Vreq / res.I * 1e3, 0)} mΩ at ${M.f} Hz, so ${fx(res.mReq * 100, 0)}% drive gives ${fx(res.I, 2)} A and ${fx(res.Bpk * 1e3, 2)} mT`, n: 'For a coil you have built, flux is nearly proportional to drive duty. The small bend comes from source sag and copper heating. Z is the coil impedance at this frequency, so recovery at a lower frequency needs a lower duty for the same current.' },
+    { g: 'therm', t: 'Burst duty: the heat dial', e: 'P_0=\\delta\\,I_{rms}^{2}R,\\quad \\delta_{max}=\\max\\{\\delta\\le 1:\\ T(t_{sess},\\delta)\\le T_{max},\\ T_s\\le T_{skin},\\ P_{in}\\le P_{max}\\}', v: `δ = ${fx(M.duty * 100, 0)}% now; heat allows ${fx(C.dutyLimits(r.geo, r.ind, r.aE, r.kB, P, M, res.I, m === 'a').D * 100, 0)}%`, n: 'Heat, supply power and pack energy scale with the burst duty δ. Flux during a burst does not. The limit is found by bisection on the same closed-form temperature, so it is exact for the model. Valid while the burst period is short against the thermal time constant.' },
     { g: 'drive', t: 'Input power', e: 'P_{in}=\\delta\\,I_{rms}^{2}\\left(R_{coil}+R_{drive}\\right)+P_{sw},\\quad I_{rms}=\\kappa_{rms}I', v: `coil ${fx(res.Pcoil, 1)} W + drive ${fx(res.Pdrive, 1)} W + switching ${fx(res.Psw, 2)} W = ${fx(res.Pin, 1)} W`, n: 'Only the coil term heats the patient-side surface. Drive losses stay in the electronics.' },
     { g: 'drive', t: 'Battery energy per session', e: 'E=P_{in}\\,t_{sess}\\le 0.8\\,E_{pack}', v: `${fx(res.E_Wh, 1)} Wh of ${isFinite(P.supply.capWh) ? fx(0.8 * P.supply.capWh, 0) + ' Wh usable' : 'unlimited (wall supply)'}`, n: 'A pack is held to 80% of rated energy so it does not run flat mid-session.' },
     { g: 'therm', t: 'Lumped thermal node', e: 'C\\,\\frac{dT}{dt}=P_0\\left[1+\\alpha(T-20)\\right]-G\\,(T-T_{ref})', v: `C = ${fx(T.C, 0)} J/K, G = ${fx(T.G, 2)} W/K, T_ref = ${fx(T.Tref, 1)} °C, P0 = ${fx(T.P0, 1)} W`, n: 'Copper heats itself, loses heat to the air below and through the cover to the body above. Resistance rises with temperature, so heating feeds on itself.' },
@@ -180,6 +183,7 @@ TABS.build = {
       [g.nw === 1 ? 'Coil' : 'Wing', `${fx(g.wx * 1e3, 0)} mm wide × ${fx(g.ly * 1e3, 0)} mm long, winding band ${fx(g.b * 1e3, 0)} mm, thickness ${fx(g.t * 1e3, 1)} mm`],
       [g.nw === 1 ? 'Shape' : 'Bend', g.nw === 1 ? `flat single coil, profile ${fx(r.prof * 1e3, 1)} mm` : `${fx(g.th * 180 / Math.PI, 1)}° per wing, ${fx(P.gap * 1e3, 0)} mm hinge gap, profile ${fx(r.prof * 1e3, 1)} mm`],
       ['Current', `${fx(A.I, 1)} A peak acute (rms ${fx(A.Irms, 1)} A, budget ${fx(P.drive.Isw, 1)} A), ${fx(R.I, 1)} A peak recovery, ${fx(A.Ibus, 1)} A average from the source`],
+      ['Duty cycle', `drive ${fx(A.mReq * 100, 0)}% (ceiling ${fx(P.acute.m * 100, 0)}%), burst ${fx(P.acute.duty * 100, 0)}% acute; drive ${fx(R.mReq * 100, 0)}%, burst ${fx(P.recov.duty * 100, 0)}% recovery`],
       ['Copper', `${fx(g.lw, 1)} m total, ${fx(g.mcu, 2)} kg, about $${fx(g.mcu * P.price, 0)}`],
       ['Electrical', `${fx(g.R20 * 1e3, 0)} mΩ cold, ${fx(A.Rhot * 1e3, 0)} mΩ hot, ${fx(r.ind.L * 1e6, 0)} µH, current density ${fx(A.Irms / (g.Acu * 1e6), 1)} A/mm² rms`],
       ['Footprint', `${fx((g.nw === 1 ? g.wx : 2 * g.wx + P.gap) * 1e3, 0)} × ${fx(g.ly * 1e3, 0)} mm`]
@@ -203,7 +207,7 @@ TABS.build = {
     ].map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`;
 
     const nm = x => String(x).replace(/\./g, '_');
-    this.esp = `// generated by the butterfly PEMF optimizer\nconst float V_BUS_V        = ${fx(P.supply.Voc, 1)}f;\nconst float F_ACUTE_HZ     = ${P.acute.f}.0f;\nconst float I_ACUTE_PK_A   = ${fx(A.I, 2)}f;\nconst uint32_t T_ACUTE_S   = ${Math.round(P.acute.tsess)};\nconst float DUTY_ACUTE     = ${fx(P.acute.duty, 2)}f;\nconst float F_RECOV_HZ     = ${P.recov.f}.0f;\nconst float I_RECOV_PK_A   = ${fx(R.I, 2)}f;\nconst uint32_t T_RECOV_S   = ${Math.round(P.recov.tsess)};\nconst float DUTY_RECOV     = ${fx(P.recov.duty, 2)}f;\nconst float I_HW_LIMIT_A   = ${fx(1.25 * Math.max(A.I, R.I), 1)}f;\nconst float T_COIL_CUT_C   = ${fx(P.thermal.Tmax - 5, 0)}f;\nconst float T_SKIN_CUT_C   = ${fx(P.thermal.Tskin - 0.5, 1)}f;\nconst float PWM_HZ         = ${P.drive.fpwm}.0f;\nconst float SHUNT_OHM      = ${fx(P.drive.Rsh, 4)}f;\nconst float MAX_DUTY       = ${fx(P.drive.Dmax, 2)}f;`;
+    this.esp = `// generated by the butterfly PEMF optimizer\nconst float V_BUS_V        = ${fx(P.supply.Voc, 1)}f;\nconst float F_ACUTE_HZ     = ${P.acute.f}.0f;\nconst float I_ACUTE_PK_A   = ${fx(A.I, 2)}f;\nconst uint32_t T_ACUTE_S   = ${Math.round(P.acute.tsess)};\nconst float MOD_ACUTE      = ${fx(A.mReq, 3)}f;   // drive duty: scale of the sine table, 0..1\nconst float DUTY_ACUTE     = ${fx(P.acute.duty, 2)}f;   // burst duty: fraction of time on\nconst float F_RECOV_HZ     = ${P.recov.f}.0f;\nconst float I_RECOV_PK_A   = ${fx(R.I, 2)}f;\nconst uint32_t T_RECOV_S   = ${Math.round(P.recov.tsess)};\nconst float MOD_RECOV      = ${fx(R.mReq, 3)}f;\nconst float DUTY_RECOV     = ${fx(P.recov.duty, 2)}f;\nconst float BURST_PERIOD_S = ${fx(P.burstT, 2)}f;\nconst float I_HW_LIMIT_A   = ${fx(1.25 * Math.max(A.I, R.I), 1)}f;\nconst float T_COIL_CUT_C   = ${fx(P.thermal.Tmax - 5, 0)}f;\nconst float T_SKIN_CUT_C   = ${fx(P.thermal.Tskin - 0.5, 1)}f;\nconst float PWM_HZ         = ${P.drive.fpwm}.0f;\nconst float SHUNT_OHM      = ${fx(P.drive.Rsh, 4)}f;\nconst float MAX_DUTY       = ${fx(P.drive.Dmax, 2)}f;`;
     $('#espOut').textContent = this.esp;
     this.json = JSON.stringify({ design: { wing_width_mm: +fx(g.wx * 1e3, 1), wing_length_mm: +fx(g.ly * 1e3, 1), turns_per_wing: +fx(g.N, 2), awg: +fx(g.awg, 2), bend_deg: +fx(g.th * 180 / Math.PI, 2), band_mm: +fx(g.b * 1e3, 1), gap_mm: P.gap * 1e3 }, acute: { f_hz: P.acute.f, wave: P.acute.wave, i_pk_a: +fx(A.I, 3), b_target_mt: +fx(A.Bpk * 1e3, 3), e_pk_v_per_m: +fx(A.Epk, 3), coil_t_end_c: +fx(A.T.Tend, 1), skin_t_c: +fx(A.T.Ts, 1) }, recovery: { f_hz: P.recov.f, wave: P.recov.wave, i_pk_a: +fx(R.I, 3), b_target_mt: +fx(R.Bpk * 1e3, 3), e_pk_v_per_m: +fx(R.Epk, 3) }, electrical: { r20_mohm: +fx(g.R20 * 1e3, 1), l_uh: +fx(r.ind.L * 1e6, 1) }, source: { voc: P.supply.Voc, name: P.supply.name } }, null, 2);
   },
@@ -221,7 +225,7 @@ TABS.build = {
 };
 
 /* ---------------- tab registry, render, init ---------------- */
-const TAB_LIST = [['field', 'Field'], ['opt', 'Optimum'], ['mine', 'My build'], ['lag', 'Lagrangian'], ['trade', 'Trade-offs'], ['eq', 'Equations'], ['build', 'Build sheet'], ['wiring', 'Wiring']];
+const TAB_LIST = [['field', 'Field'], ['opt', 'Optimum'], ['duty', 'Duty cycle'], ['mine', 'My build'], ['lag', 'Lagrangian'], ['trade', 'Trade-offs'], ['eq', 'Equations'], ['build', 'Build sheet'], ['wiring', 'Wiring']];
 S.sweep.axis = 'Imax';
 function showTab(id) {
   S.tab = id; const t = TABS[id], host = $('#panel_' + id);
@@ -247,7 +251,7 @@ function init() {
   $('#modeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.mode = b.dataset.m; renderAll(true); if (S.tab === 'lag') TABS.lag.update(true); } });
   $('#pswitch').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.panel = b.dataset.p; document.body.dataset.panel = S.panel; $$('#pswitch button').forEach(x => x.setAttribute('aria-pressed', x === b)); window.scrollTo(0, 0); });
   document.body.dataset.panel = 'views';
-  renderControls(); wireControls();
+  renderControls(); buildDutyStrip(); wireControls();
   S.x = C.toX(coldStarts(1)[0]); quickEval();
   showTab('field'); renderAll();
   solveNow({ global: true });
